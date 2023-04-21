@@ -1,7 +1,7 @@
 /* eslint-disable prettier/prettier */
 const { response } = require("express");
 const express = require("express");
-const txt = require("../models/TxtModel");
+const txt = require("../Models/TxtModel");
 
 const router = express.Router();
 

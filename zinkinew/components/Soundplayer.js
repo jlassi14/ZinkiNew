@@ -3,12 +3,15 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { ProgressBar } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Sound from 'react-native-sound';
+import PropTypes from 'prop-types';
 
-const Soundplayer = () => {
+const Soundplayer = (props) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [sound, setSound] = useState(null);
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
+   // const [url, setUrl] = useState('http://192.168.1.16:3000/audio');
+
 
     useEffect(() => {
         return () => {
@@ -20,124 +23,130 @@ const Soundplayer = () => {
     }, [sound]);
 
     useEffect(() => {
-        // Load the sound when the component mounts
-        const url = 'http://192.168.1.4:3000/audio'; 
-        const newSound = new Sound(url, '', error => {
-            if (error) {
-                console.log('Failed to load the sound', error);
+        if (props.url) {
+            // Load the sound when the component mounts
+            console.log("url in sound player : ", `${props.url}`);
+            const newUrl = `${props.url}?t=${new Date().getTime()}`; // add timestamp to the URL
+            const newSound = new Sound(newUrl, '', error => {
+                if (error) {
+                    console.log('Failed to load the sound', error);
+                } else {
+                    setDuration(newSound.getDuration());
+                    console.log('Duration in soundplayer: ', duration);
+                    setSound(newSound);
+                }
+            });
+
+            // Stop and release the sound when the component unmounts
+            return () => {
+                if (sound) {
+                    sound.stop();
+                    sound.release();
+                }
+            };
+        }
+    }, [props.url]);
+
+
+const playSound = () => {
+    if (sound) {
+        sound.play(success => {
+            if (success) {
+                console.log('Successfully finished playing');
+                setIsPlaying(false);
+                setCurrentTime(0);
+                sound.setCurrentTime(0);
             } else {
-                setDuration(newSound.getDuration());
-                setSound(newSound);
+                console.log('Playback failed due to audio decoding errors');
             }
         });
+    }
+};
 
-        // Stop and release the sound when the component unmounts
-        return () => {
-            if (sound) {
-                sound.stop();
-                sound.release();
+const pauseSound = () => {
+    if (sound) {
+        sound.pause();
+    }
+}
+
+const handlePlayPausePress = () => {
+    if (isPlaying) {
+        setIsPlaying(false);
+        pauseSound();
+    } else {
+        setIsPlaying(true);
+        playSound();
+    }
+}
+
+const handleTimeUpdate = () => {
+    if (sound && isPlaying) {
+        sound.getCurrentTime(seconds => {
+            setCurrentTime(seconds);
+        });
+    }
+}
+
+const handleSeekBackward = () => {
+    if (sound) {
+        sound.getCurrentTime((seconds) => {
+            let newPosition = seconds - 10;
+            if (newPosition < 0) {
+                newPosition = 0;
             }
-        };
-    }, []);
-    const playSound = () => {
-        if (sound) {
-            sound.play(success => {
-                if (success) {
-                    console.log('Successfully finished playing');
-                    setIsPlaying(false);
-                    setCurrentTime(0);
-                    sound.setCurrentTime(0);
-                } else {
-                    console.log('Playback failed due to audio decoding errors');
-                }
-            });
-        }
-    };
-
-    const pauseSound = () => {
-        if (sound) {
-            sound.pause();
-        }
+            setCurrentTime(newPosition);
+            sound.setCurrentTime(newPosition);
+        });
     }
+};
 
-    const handlePlayPausePress = () => {
-        if (isPlaying) {
-            setIsPlaying(false);
-            pauseSound();
-        } else {
-            setIsPlaying(true);
-            playSound();
-        }
+const handleSeekForward = () => {
+    if (sound) {
+        sound.getCurrentTime((seconds) => {
+            let newPosition = seconds + 10;
+            if (newPosition > duration) {
+                newPosition = duration;
+            }
+            setCurrentTime(newPosition);
+            sound.setCurrentTime(newPosition);
+        });
     }
+};
 
-    const handleTimeUpdate = () => {
-        if (sound && isPlaying) {
-            sound.getCurrentTime(seconds => {
-                setCurrentTime(seconds);
-            });
-        }
+useEffect(() => {
+    if (sound && isPlaying) {
+        const intervalId = setInterval(() => {
+            handleTimeUpdate();
+        }, 100);
+        return () => clearInterval(intervalId);
     }
+}, [sound, isPlaying, handleTimeUpdate]);
 
-    const handleSeekBackward = () => {
-        if (sound) {
-            sound.getCurrentTime((seconds) => {
-                let newPosition = seconds - 10;
-                if (newPosition < 0) {
-                    newPosition = 0;
-                }
-                setCurrentTime(newPosition);
-                sound.setCurrentTime(newPosition);
-            });
-        }
-    };
-
-    const handleSeekForward = () => {
-        if (sound) {
-            sound.getCurrentTime((seconds) => {
-                let newPosition = seconds + 10;
-                if (newPosition > duration) {
-                    newPosition = duration;
-                }
-                setCurrentTime(newPosition);
-                sound.setCurrentTime(newPosition);
-            });
-        }
-    };
-
-    useEffect(() => {
-        if (sound && isPlaying) {
-            const intervalId = setInterval(() => {
-                handleTimeUpdate();
-            }, 100);
-            return () => clearInterval(intervalId);
-        }
-    }, [sound, isPlaying, handleTimeUpdate]);
-    
-    const formatTime = time => {
-        const minutes = Math.floor(time / 60);
-        const seconds = Math.floor(time % 60);
-        const pad = num => {
-            return num < 10 ? '0' + num : num;
-        }
-        return pad(minutes) + ':' + pad(seconds);
+const formatTime = time => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    const pad = num => {
+        return num < 10 ? '0' + num : num;
     }
+    return pad(minutes) + ':' + pad(seconds);
+}
 
-    return (
-        <View style={styles.container}>
-            <View style={styles.progressContainer}>
-                <View style={styles.progressBarContainer}>
-                    <View style={styles.progressTimeContainer}>
-                        <Text style={styles.progressTime}>{formatTime(currentTime)}</Text>
-                    </View>
-                    <View style={styles.progressBar}>
-                        <ProgressBar progress={duration > 0 ? currentTime / duration : 0} color={'#6CA4FC'} />
-
-                    </View>
-                    <View style={styles.progressTimeContainer}>
-                        <Text style={styles.progressTime}>{formatTime(duration)}</Text>
-                    </View>
+return (
+    <View style={styles.container}>
+        <View style={styles.progressContainer}>
+            <View style={styles.progressBarContainer}>
+                <View style={styles.progressTimeContainer}>
+                    <Text style={styles.progressTime}>{formatTime(currentTime)}</Text>
                 </View>
-                <View style={styles.controlsContainer}>
+                <View style={styles.progressBar}>
+                    <ProgressBar progress={duration > 0 ? currentTime / duration : 0} color={'#6CA4FC'} />
+
+                </View>
+                <View style={styles.progressTimeContainer}>
+                    <Text style={styles.progressTime}>{formatTime(duration)}</Text>
+                </View>
+            </View>
+            <View style={styles.controlsContainer}>
                 <TouchableOpacity style={styles.seekButtonContainer} onPress={handleSeekBackward}>
                     <Icon name={"backward"} size={24} color={"#fff"} />
                 </TouchableOpacity>
@@ -147,11 +156,14 @@ const Soundplayer = () => {
                 <TouchableOpacity style={styles.seekButtonContainer} onPress={handleSeekForward}>
                     <Icon name={"forward"} size={24} color={"#fff"} />
                 </TouchableOpacity>
-                </View>
             </View>
         </View>
-    );
+    </View>
+);
 }
+Soundplayer.propTypes = {
+    url: PropTypes.string.isRequired,
+};
 
 export default Soundplayer;
 
@@ -161,7 +173,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
         backgroundColor: '#F2F2F2',
         paddingHorizontal: 5,
-        marginTop:50,
+        marginTop: 50,
     },
     progressContainer: {
         backgroundColor: '#17093A',
@@ -196,7 +208,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginRight: 10,
     },
-   
+
     controlsContainer: {
         flexDirection: 'row',
         alignItems: 'center',

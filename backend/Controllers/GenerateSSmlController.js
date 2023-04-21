@@ -2,78 +2,41 @@
 const fs = require('fs');
 const { Buffer } = require('buffer');
 const serveStatic = require('serve-static');
+const Quota = require('../Models/Quota');
 
-exports.Break = async (req, res) => {
-  const { Text, Position, ConfigValue, DefaultSSML, id } = req.body;
+exports.Quota = async (req, res) => {
+  const { userId, Quota_Type } = req.body;
+  let max_value;
 
-  // Insert the config attribute at the specified position in the text
-  const Start = Text.slice(0, Position);
-  const End = Text.slice(Position);
-  const Ssml = `<speak>${Start} <break time=${ConfigValue} />${End}</speak>`;
-
-  console.log(`ssml: ${Ssml}, position: ${Position}, configName: break, configValue: ${ConfigValue}, id: ${id}`);
-
-  let count = 0;
-  let pos = -1;
-  for (let i = 0; i < DefaultSSML.length; i++) {
-    const c = DefaultSSML.charAt(i);
-    if (c === "<") {
-      count++;
-    } else if (c === ">") {
-      count--;
-    } else if (count === 0) {
-      pos++;
-      if (pos === Position) {
-
-        const X = DefaultSSML.slice(0, i);
-        const Y = DefaultSSML.slice(i);
-        const updateddefaultssml = X + `<break time='${ConfigValue}s' />` + Y;
-
-        console.log('updateddefaultssml break : ', updateddefaultssml);
-        console.log('X:', X);
-        console.log('Y:', Y);
-
-        // Create the request object
-        const request = {
-          input: { ssml: updateddefaultssml },
-          voice: { languageCode: 'en-US', name: 'en-US-Wavenet-D' },
-          audioConfig: { audioEncoding: 'MP3' }
-        };
-
-        // Send the request to the Text-to-Speech API
-        const response = await fetch('https://texttospeech.googleapis.com/v1beta1/text:synthesize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-goog-api-key': 'AIzaSyBpKakDqYNOO4jegJsZ5X5Md-0NBLezJU0' },
-          body: JSON.stringify(request)
-        });
-
-        const responseData = await response.json();
-        const audioContent = responseData.audioContent;
-
-        if (audioContent) {
-          const decodedAudioContent = Buffer.from(audioContent.toString('base64'), 'base64');
-          // Write the decoded audio content to a new file
-          fs.writeFile('audio.mp3', decodedAudioContent, (err) => {
-            if (err) throw err;
-            console.log('File created!');
-          });
-          // Send the response to the client with the file path
-          res.send({ message: 'SSML generated successfully! ', Ssml: Ssml, updateddefaultssml: updateddefaultssml, audioContent: audioContent, url: `http://localhost:3000/audio.mp3` });
-          return;
-        } else {
-          res.status(400).send({ message: 'Error: audio content not found' });
-        }
-
-
-        // Send the response to the client
-        //  res.send({ message: 'SSML generated successfully! ', Ssml:Ssml, updateddefaultssml: updateddefaultssml, audioContent: audioContent ,  url: 'http://192.168.1.4:3000/audio.mp3'});
-        //  return;
-      }
-    }
+  // Set max_value based on Quota_Type
+  if (Quota_Type === 'free') {
+    max_value = 4000;
+  } else if (Quota_Type === 'premium') {
+    max_value = 6000;
+  } else {
+    // Return an error if Quota_Type is not valid
+    res.status(400).send('Invalid Quota_Type');
+    return;
   }
 
-  res.status(400).send({ message: 'Error: position not found' });
-}
+  try {
+    // Create a new Quota document
+    const quota = new Quota({
+      userid:userId,
+      quota_number: '0',
+      quota_type: Quota_Type,
+      max_value,
+    });
+
+    // Save the document to the database
+    await quota.save();
+
+    res.status(200).json({ message: 'Quota added successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Internal server error');
+  }
+};
 
 
 
@@ -175,7 +138,7 @@ exports.GenerateSsml = async (req, res) => {
 
 
         // Send the response to the client
-        res.send({ message: 'SSML generated successfully! if (pos === StartPos ) ', Ssml: Ssml, updateddefaultssml: updateddefaultssml, audioContent: audioContent });
+        res.send({ message: 'SSML generated successfully! if (pos === StartPos ) ', Ssml: Ssml, updateddefaultssml: updateddefaultssml });
 
 
         return;
@@ -292,7 +255,9 @@ exports.GenerateSsml = async (req, res) => {
 
 
 exports.TesteSsml = async (req, res) => {
-  const { DefaultSSML, SSMLTags } = req.body;
+
+
+  const { DefaultSSML, SSMLTags, selectedLanguage,selectedVoiceGender } = req.body;
   let insideTag = false;
   let MyNewSSML = DefaultSSML;
   
@@ -360,7 +325,8 @@ exports.TesteSsml = async (req, res) => {
    // Create the request object
         const request = {
           input: { ssml: MyNewSSML },
-          voice: { languageCode: 'en-US', name: 'en-US-Wavenet-D' },
+          voice: {
+            languageCode: selectedLanguage, ssmlGender: selectedVoiceGender  },
           audioConfig: { audioEncoding: 'MP3' }
         };
 
@@ -381,8 +347,8 @@ exports.TesteSsml = async (req, res) => {
             if (err) throw err;
             console.log('File created!');
           });
-          // Send the response to the client with the file path
-          res.send({ message: 'SSML generated successfully! ', audioContent: audioContent, url: `http://localhost:3000/audio.mp3` , SSML: MyNewSSML  });
+          // Send the response to the client with the file path 
+          res.send({ message: 'SSML generated successfully! ',  url: `http://192.168.1.105:3000/audio` , SSML: MyNewSSML  });
           return;
         } else {
           res.status(400).send({ message: 'Error: audio content not found' });
