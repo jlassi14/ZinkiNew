@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const schema = new mongoose.Schema(
   {
     userid: { type: String, default: "" },
-    quota_number: { type: String, default: "" },
+    quota_number: { type: Number },
     quota_type: { type: String, default: "" },
     max_value: { type: Number }
   },
