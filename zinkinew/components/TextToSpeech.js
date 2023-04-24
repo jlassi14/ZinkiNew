@@ -589,7 +589,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 db.transaction((tx) => {
                     tx.executeSql(
                         'UPDATE DOCS SET DefaultSSMl = ? , Url = ? WHERE id = ? AND UserId = ?',
-                        [responseData.SSML, responseData.url, 4, 33], // Replace with the actual values of id and UserId
+                        [responseData.SSML, responseData.url, 41, 33], // Replace with the actual values of id and UserId
                         (tx, result) => {
                             console.log('DefaultSSML updated successfully');
                         },
@@ -890,6 +890,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                         <Icon name={"play"} size={24} color={"#fff"} style={styles.playIconContainer} />
                         <Text style={styles.buttonText}>Listen</Text>
                     </TouchableOpacity>
+<<<<<<< HEAD
                           </View>*/}
 
                     <View style={{ width: '100%', alignItems: 'center', }}>
@@ -910,6 +911,24 @@ CREATE TABLE IF NOT EXISTS DOCS (
                                 Apply Changes
                             </Button>
                         </View>
+=======
+                   
+                </View>*/}
+
+                    <View style={{ width: 200, justifyContent: 'center', marginLeft: 75, marginTop: 5 }}>
+                        <Button
+                            mode="contained"
+                            buttonColor="#2B3270"
+                            disabled={SSMLTags.length === 0}
+                            onPress={applyChanges}
+                            style={{ borderRadius: 20, marginVertical: 8 }}
+                            contentStyle={{ height: 40 }}
+                            labelStyle={{ fontSize: 16 }}
+
+                        >
+                            Apply Changes
+                        </Button>
+>>>>>>> main
                     </View>
                     {isMenuVisible && (
                         <View style={styles.menuContainer}>

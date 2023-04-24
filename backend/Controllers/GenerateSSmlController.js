@@ -39,6 +39,35 @@ exports.Quota = async (req, res) => {
 };
 
 
+exports.getQuotaById = async (req, res) => {
+  const {id} = req.params; // Update parameter name to QuotaID
+
+  try {
+    // Find the quota document with matching id
+    const quota = await Quota.findOne({ userid: id }); // Use QuotaID instead of id
+
+    if (!quota) {
+      // Return a 404 error if no matching quota is found
+      res.status(404).send('Quota not found');
+      return;
+    }
+
+    if (quota.quota_number>=quota.max_value&& quota.quota_type =='premium') {   
+       res.status(200).json( 'you must charge your account');
+
+    }
+    else if (quota.quota_number>=quota.max_value&& quota.quota_type =='free') {   
+      res.status(200).json( {message: 'free mode is disabled now!! , please go premium'});
+
+   }
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Internal server error');
+  }
+};
+
+
 
 
 
@@ -261,6 +290,34 @@ exports.TesteSsml = async (req, res) => {
   let insideTag = false;
   let MyNewSSML = DefaultSSML;
   
+/*
+  const {id} = req.params; // Update parameter name to QuotaID
+
+  try {
+    // Find the quota document with matching id
+    const quota = await Quota.findOne({ userid: id }); // Use QuotaID instead of id
+
+    if (!quota) {
+      // Return a 404 error if no matching quota is found
+      res.status(404).send('Quota not found');
+      return;
+    }
+
+    if (quota.quota_number>=quota.max_value&& quota.quota_type =='premium') {   
+       res.status(200).json( 'you must charge your account');
+
+    }
+    else if (quota.quota_number>=quota.max_value&& quota.quota_type =='free') {   
+      res.status(200).json( {message: 'free mode are disabled , please go premium'});
+
+   }
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Internal server error');
+  }*/
+
+
   // Add opening tags
   for (let i = 0; i < SSMLTags.length; i++) {
     let position = 0;
