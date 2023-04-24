@@ -10,7 +10,7 @@ const Soundplayer = (props) => {
     const [sound, setSound] = useState(null);
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
-   // const [url, setUrl] = useState('http://192.168.1.16:3000/audio');
+   // const [url, setUrl] = useState('http://192.168.1.5:3000/audio');
 
 
     useEffect(() => {

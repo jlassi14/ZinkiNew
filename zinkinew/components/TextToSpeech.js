@@ -379,7 +379,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
         db.transaction((tx) => {
             tx.executeSql(
                 'SELECT * FROM DOCS WHERE id = ? AND UserId = ?',
-                [4,33],
+                [41,33],
                 (tx, results) => {
                     const users = results.rows.raw();
                     console.log('Docs:', users);
@@ -436,8 +436,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 console.log('User inserted successfully');
                 const lastInsertId = result.insertId;
                 //console.log('User inserted successfully with ID ','${ lastInsertId });
-
-                fetch('http://192.168.1.105:3000/GenerateSSML/Quota', {
+                fetch('http://192.168.1.5:3000/GenerateSSML/Quota', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -468,20 +467,15 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 console.log('Error inserting user:', error);
             });
         });
-
         // Insert a new docs into the "Docs" table
-
-
         db.transaction((tx) => {
-            tx.executeSql(insertDocsSql, ['مرحبا بكم في زنكي', 'image', '<speak>مرحبا بكم في زنكي </speak>', '33', 'http://192.168.1.105:3000/audio'], (_, result) => {
+            tx.executeSql(insertDocsSql, ['مرحبا بكم في زنكي', 'image', '<speak>مرحبا بكم في زنكي </speak>', '33', 'http://192.168.1.5:3000/audio'], (_, result) => {
                 console.log('User inserted successfully');
             }, (_, error) => {
                 console.log('Error inserting Docs:', error);
             });
         });
-
         console.log('SSMLTags tab:', SSMLTags); 
-
 */
 
     }, [SSMLTags, defaultSSMLFromDB, textFromDB, urlFromDB]);
@@ -495,7 +489,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
     const applyChanges = async () => {
         console.log('texttttttt', lastSelection.selectedText)
         try {
-            const response = await fetch('http://192.168.1.105:3000/GenerateSSML/test', {
+            const response = await fetch('http://192.168.1.5:3000/GenerateSSML/test', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -517,7 +511,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 db.transaction((tx) => {
                     tx.executeSql(
                         'UPDATE DOCS SET DefaultSSMl = ? , Url = ? WHERE id = ? AND UserId = ?',
-                        [responseData.SSML, responseData.url, 4, 33], // Replace with the actual values of id and UserId
+                        [responseData.SSML, responseData.url, 41, 33], // Replace with the actual values of id and UserId
                         (tx, result) => {
                             console.log('DefaultSSML updated successfully');
                         },
@@ -771,10 +765,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                         <Icon name={"play"} size={24} color={"#fff"} style={styles.playIconContainer} />
                         <Text style={styles.buttonText}>Listen</Text>
                     </TouchableOpacity>
-
                    
-
-
                 </View>*/}
 
                     <View style={{ width: 200, justifyContent: 'center', marginLeft: 75, marginTop: 5 }}>
