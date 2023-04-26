@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, Modal, SafeAreaView } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Modal, SafeAreaView, ScrollView, } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { TextInput, Button, Menu, Divider, Provider, IconButton, } from 'react-native-paper';
+import { TextInput, Button, Menu, Divider, Provider, Card, IconButton } from 'react-native-paper';
 import Slider from '@react-native-community/slider';
 import Soundplayer from './Soundplayer';
 import { Picker } from '@react-native-picker/picker';
 import SQLite from 'react-native-sqlite-storage';
-
+import iso6391 from 'iso-639-1'
 
 
 const TextToSpeech = () => {
@@ -17,6 +17,8 @@ const TextToSpeech = () => {
     var [textFromDB, settextFromDB] = useState("");
     var [urlFromDB, seturlFromDB] = useState("");
     const [url, setUrl] = useState(null);
+    const TTS_API_KEY = 'AIzaSyBpKakDqYNOO4jegJsZ5X5Md-0NBLezJU0';
+    const TTS_LANGUAGES_API_URL = `https://texttospeech.googleapis.com/v1beta1/voices?key=${TTS_API_KEY}`;
 
 
     const [isMenuVisible, setIsMenuVisible] = useState(false);
@@ -28,6 +30,7 @@ const TextToSpeech = () => {
     //const showListenButton = selection.start !== selection.end;
     const [selectedLanguage, setSelectedLanguage] = useState('Choose option');
     const [selectedVoiceGender, setSelectedVoiceGender] = useState('Choose option');
+    const [languages, setLanguages] = useState([]);
     const [inputFocused, setInputFocused] = useState(false);
     const [SSMLTags, setSSMLTags] = useState([]);
     const [text, setText] = useState('');
@@ -35,9 +38,10 @@ const TextToSpeech = () => {
     const [visible, setVisible] = React.useState(false);
     const openMenu = () => setVisible(true);
     const closeMenu = () => setVisible(false);
-    const [previewText, setPreviewText] = useState('');
 
-    
+
+
+
 
 
 
@@ -87,10 +91,6 @@ const TextToSpeech = () => {
 
 
 
-    const handlePreviewPress = () => {
-        setShowPreviewModal(true);
-        closeMenu();
-    };
     const resetCurrentChanges = () => {
         if (SSMLTags.length > 0) {
             setSSMLTags([]);
@@ -98,7 +98,10 @@ const TextToSpeech = () => {
         setShowDiscardModal(false);
     };
 
-    
+    const handleLayout = event => {
+        const { width, height } = event.nativeEvent.layout;
+        // do something with width and height
+    }
     const resetDefaultSSML = async () => {
 
         const db = SQLite.openDatabase({ name: 'ZinkiDB', location: 'default' });
@@ -154,6 +157,42 @@ const TextToSpeech = () => {
 
     };
 
+    useEffect(() => {
+        fetch(TTS_LANGUAGES_API_URL)
+            .then(response => response.json())
+            .then(data => {
+                const languageCodesSet = new Set();
+                const languageLabelMap = new Map(); // map object to store unique labels
+                data.voices
+                    .filter(voice => voice.languageCodes.length > 0 && iso6391.getName(voice.languageCodes[0].split('-')[0]) !== "")
+                    .forEach(({ languageCodes }) => {
+                        languageCodes.forEach(code => {
+                            if (!languageCodesSet.has(code)) {
+                                languageCodesSet.add(code);
+                                const label = iso6391.getName(code.split('-')[0]);
+                                if (!languageLabelMap.has(label)) { // store the first occurrence of the label
+                                    languageLabelMap.set(label, { label, value: code });
+                                }
+                            }
+                        });
+                    });
+                const availableLanguages = Array.from(languageLabelMap.values()).sort((a, b) => a.label.localeCompare(b.label)); // extract the values of the map object as an array
+                setLanguages(availableLanguages);
+            })
+            .catch(error => console.error(error));
+    }, []);
+    console.log('labellllllllllllllllllllllllllllllll', languages);
+    console.log('selected langugeeeeeeeeee', selectedLanguage);
+    console.log('voice genderrrrrrrrr', selectedVoiceGender);
+
+
+
+
+
+    const getLanguagesBySelectedVoiceGender = (selectedGender) => {
+        return languages.filter(language => language.gender === selectedGender || selectedGender === 'Choose option');
+    };
+    const filteredLanguages = getLanguagesBySelectedVoiceGender(selectedVoiceGender);
     const handleSelectionChange = (event) => {
         const { start, end } = event.nativeEvent.selection;
         if (start !== end) {
@@ -509,7 +548,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                   const lastInsertId = result.insertId;
                   //console.log('User inserted successfully with ID ','${ lastInsertId });
   
-                  fetch('http://192.168.1.16:3000/GenerateSSML/Quota', {
+                  fetch('http://192.168.0.133:3000/GenerateSSML/Quota', {
                       method: 'POST',
                       headers: {
                           'Content-Type': 'application/json'
@@ -545,7 +584,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
   
   
           db.transaction((tx) => {
-              tx.executeSql(insertDocsSql, ['3 مرحبا بكم في زنكي', 'image', '<speak>3 مرحبا بكم في زنكي </speak>', '33', 'http://192.168.1.16:3000/audio'], (_, result) => {
+              tx.executeSql(insertDocsSql, ['3 مرحبا بكم في زنكي', 'image', '<speak>3 مرحبا بكم في زنكي </speak>', '33', 'http://192.168.0.133:3000/audio'], (_, result) => {
                   console.log('User inserted successfully');
               }, (_, error) => {
                   console.log('Error inserting Docs:', error);
@@ -572,9 +611,12 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 headers: {
                     'Content-Type': 'application/json'
                 },
+
                 body: JSON.stringify({ DefaultSSML: defaultSSMLFromDB, SSMLTags, selectedLanguage, selectedVoiceGender })
 
-            });
+            }); console.log('selected langugeeeeeeeeee', selectedLanguage);
+            console.log('voice genderrrrrrrrr', selectedVoiceGender);
+
             const responseData = await response.json();
             // Do something with the response data
             console.log('responseData', responseData);
@@ -705,7 +747,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                             <Text style={styles.subMenuItemText} onPress={() => { setModalAbbVisible(true); setActiveMenu(-1); }}>Abbreviation</Text>
                             <Icon name="ios-text-outline" size={24} color="#2B3270" />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.subMenuItem} onPress={() => {setModalSpellVisible(true); setActiveMenu(-1); }}>
+                        <TouchableOpacity style={styles.subMenuItem} onPress={() => { setModalSpellVisible(true); setActiveMenu(-1); }}>
                             <Text style={styles.subMenuItemText}>Spell Out</Text>
                             <Icon name="md-chatbubble-ellipses-outline" size={24} color="#2B3270" />
                         </TouchableOpacity>
@@ -717,7 +759,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                                 <Text style={styles.subMenuItemText}>Time</Text>
                                 <Icon name="ios-time-outline" size={24} color="#2B3270" />
                             </TouchableOpacity>*/}
-                        <TouchableOpacity style={styles.subMenuItem}  onPress={() => { setModalCardinalVisible(true); setActiveMenu(-1);}}>
+                        <TouchableOpacity style={styles.subMenuItem} onPress={() => { setModalCardinalVisible(true); setActiveMenu(-1); }}>
                             <Text style={styles.subMenuItemText}>Cardinal number</Text>
                             <Icon name="stats-chart-outline" size={24} color="#2B3270" />
                         </TouchableOpacity>
@@ -742,41 +784,52 @@ CREATE TABLE IF NOT EXISTS DOCS (
     };
 
     return (
-    <Provider>
-        <SafeAreaView>
-            <View style={styles.container}>
+        <Provider>
+            <SafeAreaView>
+                <View style={styles.container}>
 
-                <View style={showAppBar ? styles.dropsContainer : styles.hidden}>
-                    <View style={styles.pickerContainer}>
-                        <View style={styles.dropdownContainer}>
-                            <Picker
-                                mode='dropdown'
-                                placeholder={{ label: 'Language', value: null }}
-                                style={styles.dropdown}
-                                selectedValue={selectedLanguage}
-                                onValueChange={onLanguageChange}>
-                                <Picker.Item label="Choose option" value="Choose option" style={{ fontWeight: 'bold', color: 'gray' }} />
-                                <Picker.Item label="Arabic" value="ar-AR" />
-                                <Picker.Item label="English" value="en-US" />
-                                <Picker.Item label="French" value="fr-FR" />
-                            </Picker>
+
+                    <View style={showAppBar ? styles.dropsContainer : styles.hidden}>
+                        <View style={styles.pickerContainer}>
+                            <View style={styles.dropdownContainer}>
+
+
+                                <Picker
+                                    dropdownIconRippleColor="#6CA4FC"
+                                    dropdownIconColor="#2B3270"
+                                    mode='dropdown'
+                                    placeholder={{ label: 'Language', value: null }}
+                                    style={styles.dropdown}
+                                    selectedValue={selectedLanguage}
+                                    onValueChange={onLanguageChange}
+                                >
+
+                                    <Picker.Item label="Choose option" value="Choose option" style={{ fontWeight: 'bold', color: 'gray' }} />
+                                    {languages.map((language) => (
+                                        <Picker.Item key={language.value} label={language.label} value={language.value} numberOfLines={1} />
+                                    ))}
+
+                                </Picker>
+
+                            </View>
                         </View>
-                    </View>
-                    <View style={styles.pickerContainer}>
-                        <View style={styles.dropdownContainer}>
-                            <Picker
-                                mode='dropdown'
-                                prompt="Voice gender"
-                                style={styles.dropdown}
-                                selectedValue={selectedVoiceGender}
-                                onValueChange={onVoiceGenderChange}>
-                                <Picker.Item label="Choose option" value="Choose option" style={{ fontWeight: 'bold', color: 'gray' }} />
-                                <Picker.Item label="Male" value="male" />
-                                <Picker.Item label="Female" value="female" />
-                            </Picker>
+                        <View style={styles.pickerContainer}>
+                            <View style={styles.dropdownContainer}>
+                                <Picker
+                                    dropdownIconRippleColor="#6CA4FC"
+                                    dropdownIconColor="#2B3270"
+                                    mode='dropdown'
+                                    prompt="Voice gender"
+                                    style={styles.dropdown}
+                                    selectedValue={selectedVoiceGender}
+                                    onValueChange={onVoiceGenderChange}>
+                                    <Picker.Item label="Choose option" value="Choose option" style={{ fontWeight: 'bold', color: 'gray' }} />
+                                    <Picker.Item label="Male" value="male" />
+                                    <Picker.Item label="Female" value="female" />
+                                </Picker>
+                            </View>
                         </View>
-                    </View>
-                    
+
                         <View>
                             <Menu
                                 visible={visible}
@@ -796,29 +849,30 @@ CREATE TABLE IF NOT EXISTS DOCS (
                                 }}
                             >
                                 <View style={[styles.menuItemContainer, { height: 46 }]}>
-                                    <Icon name="arrow-undo-outline" size={24} color="#6CA4FC" />
+                                    <Icon name="arrow-undo-outline" size={24} color={SSMLTags.length === 0 ? "#A9A9A9" : "#6CA4FC"} />
                                     <Menu.Item title="Reset current changes" onPress={() => {
                                         setShowDiscardModal(true);
                                         closeMenu();
-                                    }} disabled={SSMLTags.length === 0}/>
+                                    }} disabled={SSMLTags.length === 0} />
                                 </View>
                                 <View style={[styles.menuItemContainer, { height: 47 }]}>
-                                    <Icon name="refresh" size={24} color="#6CA4FC" />
+                                    <Icon name="refresh" size={24} color={(selectedLanguage === 'Choose option' || selectedVoiceGender === 'Choose option') ? "#A9A9A9" : "#6CA4FC"} />
                                     <Menu.Item title="Reset" onPress={() => {
                                         setShowResetModal(true);
                                         closeMenu();
-                                    }} disabled={selectedLanguage === 'Choose option' || selectedVoiceGender === 'Choose option'}/>
+                                    }} disabled={selectedLanguage === 'Choose option' || selectedVoiceGender === 'Choose option'} />
                                 </View>
+
                                 <Divider />
                                 <View style={[styles.menuItemContainer, { height: 46 }]}>
                                     <Icon name="eye-outline" size={24} color="#6CA4FC" />
-                                    <Menu.Item title="Preview changes" onPress={handlePreviewPress} />
+                                    <Menu.Item title="Preview changes" onPress={() => { setShowPreviewModal(true); closeMenu(); }} />
                                 </View>
                                 <Divider />
                                 <View style={[styles.menuItemContainer, { height: 46 }]}>
                                     <Icon name="analytics-outline" size={24} color="#6CA4FC" />
                                     <Menu.Item title="Quota" onPress={() => {
-                                
+
                                         closeMenu();
                                     }} />
                                 </View>
@@ -827,595 +881,576 @@ CREATE TABLE IF NOT EXISTS DOCS (
 
 
                         </View>
-                    
-                   
-                </View>
-                
 
-                <View style={showNavBar ? styles.navbar : styles.hidden}>
-                    <TouchableOpacity onPress={() => handleMenuClick(0)} style={styles.menuItem}>
-                        <Icon name="reader-outline" size={24} color="#fff" />
-                        <Text style={styles.menuItemText}>Text Structure</Text>
-                    </TouchableOpacity>
-                    {renderSubMenu(0)}
-                    <TouchableOpacity onPress={() => handleMenuClick(1)} style={styles.menuItem}>
-                        <Icon name="radio-outline" size={24} color="#fff" />
-                        <Text style={styles.menuItemText}>Voice</Text>
-                    </TouchableOpacity>
-                    {renderSubMenu(1)}
-                    <TouchableOpacity onPress={() => handleMenuClick(2)} style={styles.menuItem}>
-                        <Icon name="ear-outline" size={24} color="#fff" />
-                        <Text style={styles.menuItemText}>Pronounciation</Text>
-                    </TouchableOpacity>
-                    {renderSubMenu(2)}
 
-                </View>
-
-                <View style={styles.containerInput} removeClippedSubviews={true}>
-                    <TextInput
-                        onFocus={() => setInputFocused(true)} // update inputFocused state when input is focused
-                        onBlur={() => setInputFocused(false)}
-                        onSelectionChange={handleSelectionChange}
-                        placeholder="Enter text here..."
-                        placeholderTextColor="#ccc"
-                        selectionColor='#89CFF0'
-                        activeUnderlineColor='transparent'
-                        numberOfLines={13}
-                        multiline={true}
-                        onChangeText={(text) => setText(text)}
-                        value={textFromDB}
-                        mode="flat"
-                        dense
-                        style={styles.input}
-                        underlineColor="#FFF"
-                        contextMenuHidden={true}
-                       showSoftInputOnFocus={false}
-
-                    />
-
-                </View>
-                <View >
-                    <View >
-                        <TouchableOpacity
-                            disabled={!inputFocused || selection.start !== selection.end}
-                            style={selection.start !== selection.end || !inputFocused ? styles.disabledButton : styles.breakcircleButtonContainer}
-                            onPress={() => { setModalBreakVisible(true); }}
-                        >
-                            <Icon name={"pause"} size={24} color={"#fff"} style={styles.breakIconContainer} />
-                            <Text style={styles.buttonText}>Break</Text>
-                        </TouchableOpacity>
                     </View>
-                    {/*  <View style={!showListenButton && styles.hidden}>
+
+
+                    <View style={showNavBar ? styles.navbar : styles.hidden}>
+                        <TouchableOpacity onPress={() => handleMenuClick(0)} style={styles.menuItem}>
+                            <Icon name="reader-outline" size={24} color="#fff" />
+                            <Text style={styles.menuItemText}>Text Structure</Text>
+                        </TouchableOpacity>
+                        {renderSubMenu(0)}
+                        <TouchableOpacity onPress={() => handleMenuClick(1)} style={styles.menuItem}>
+                            <Icon name="radio-outline" size={24} color="#fff" />
+                            <Text style={styles.menuItemText}>Voice</Text>
+                        </TouchableOpacity>
+                        {renderSubMenu(1)}
+                        <TouchableOpacity onPress={() => handleMenuClick(2)} style={styles.menuItem}>
+                            <Icon name="ear-outline" size={24} color="#fff" />
+                            <Text style={styles.menuItemText}>Pronounciation</Text>
+                        </TouchableOpacity>
+                        {renderSubMenu(2)}
+
+                    </View>
+
+                    <View style={styles.containerInput} removeClippedSubviews={true}>
+                        <TextInput
+                            onFocus={() => setInputFocused(true)} // update inputFocused state when input is focused
+                            onBlur={() => setInputFocused(false)}
+                            onSelectionChange={handleSelectionChange}
+                            placeholder="Enter text here..."
+                            placeholderTextColor="#ccc"
+                            selectionColor='#89CFF0'
+                            activeUnderlineColor='transparent'
+                            numberOfLines={13}
+                            multiline={true}
+                            onChangeText={(text) => setText(text)}
+                            value={textFromDB}
+                            mode="flat"
+                            dense
+                            style={styles.input}
+                            underlineColor="#FFF"
+                            contextMenuHidden={true}
+                            showSoftInputOnFocus={false}
+
+                        />
+
+                    </View>
+                    <View >
+                        <View >
+                            <TouchableOpacity
+                                disabled={!inputFocused || selection.start !== selection.end}
+                                style={selection.start !== selection.end || !inputFocused ? styles.disabledButton : styles.breakcircleButtonContainer}
+                                onPress={() => { setModalBreakVisible(true); }}
+                            >
+                                <Icon name={"pause"} size={24} color={"#fff"} style={styles.breakIconContainer} />
+                                <Text style={styles.buttonText}>Break</Text>
+                            </TouchableOpacity>
+                        </View>
+                        {/*  <View style={!showListenButton && styles.hidden}>
                     <TouchableOpacity style={styles.playcircleButtonContainer}>
                         <Icon name={"play"} size={24} color={"#fff"} style={styles.playIconContainer} />
                         <Text style={styles.buttonText}>Listen</Text>
                     </TouchableOpacity>
-<<<<<<< HEAD
                           </View>*/}
 
-                    <View style={{ width: '100%', alignItems: 'center', }}>
-                        <View style={{ width: 200, justifyContent: 'center', marginTop: 20, marginLeft: 'auto', marginRight: 'auto' }}>
-                            <Button
-                                mode="outlined"
-                                disabled={SSMLTags.length === 0 || selectedLanguage === 'Choose option' || selectedVoiceGender === 'Choose option'}
-                                onPress={applyChanges}
-                                style={{
-                                    borderRadius: 20,
-                                    marginVertical: 8,
-                                    borderColor: "#6CA4FC",
-                                }}
-                                contentStyle={{ height: 40 }}
-                                labelStyle={{ fontSize: 16 }}
-                                textColor="#6CA4FC"
-                            >
-                                Apply Changes
-                            </Button>
+                        <View style={{ width: '100%', alignItems: 'center', }}>
+                            <View style={{ width: 200, justifyContent: 'center', marginTop: 20, marginLeft: 'auto', marginRight: 'auto' }}>
+                                <Button
+                                    mode="outlined"
+                                    disabled={SSMLTags.length === 0 || selectedLanguage === 'Choose option' || selectedVoiceGender === 'Choose option'}
+                                    onPress={applyChanges}
+                                    style={{
+                                        borderRadius: 20,
+                                        marginVertical: 8,
+                                        borderColor: "#6CA4FC",
+                                    }}
+                                    contentStyle={{ height: 40 }}
+                                    labelStyle={{ fontSize: 16 }}
+                                    textColor="#6CA4FC"
+                                >
+                                    Apply Changes
+                                </Button>
+                            </View>
                         </View>
-=======
-                   
-                </View>*/}
-
-                    <View style={{ width: 200, justifyContent: 'center', marginLeft: 75, marginTop: 5 }}>
-                        <Button
-                            mode="contained"
-                            buttonColor="#2B3270"
-                            disabled={SSMLTags.length === 0}
-                            onPress={applyChanges}
-                            style={{ borderRadius: 20, marginVertical: 8 }}
-                            contentStyle={{ height: 40 }}
-                            labelStyle={{ fontSize: 16 }}
-
-                        >
-                            Apply Changes
-                        </Button>
->>>>>>> main
-                    </View>
-                    {isMenuVisible && (
-                        <View style={styles.menuContainer}>
-                            <TouchableOpacity onPress={() => setIsMenuVisible(false)}>
-                                <View style={{ alignItems: 'center', justifyContent: 'center' }} >
-                                    <Icon name="chevron-down-outline" size={24} color="#6CA4FC" />
-                                </View>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.menuItemElip}>
-                                <Text style={styles.menuText}>Overview</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.menuItemElip}>
-                                <Text style={[styles.menuText, { color: '#6CA4FC' }]}>Set Voice</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.menuItemElip}>
-                                <Text style={[styles.menuText, { color: '#6CA4FC' }]}>Set Language</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
-                </View>
-
-
-
-
-                <Modal animationType='slide' transparent={true} visible={modalBreakVisible}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
-                            <TouchableOpacity onPress={() => setModalBreakVisible(false)}>
-                                <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
-                            </TouchableOpacity>
-                            <Text style={styles.modalTitle}>Set Break Point Time</Text>
-
-                            <View style={styles.modalBreakInputContainer}>
-                                <View style={styles.modalBreakDurationContainer}>
-
-                                    <Slider
-                                        style={{ width: '100%', height: 40, }}
-                                        minimumValue={1}
-                                        maximumValue={60}
-                                        minimumTrackTintColor='#6CA4FC'
-                                        maximumTrackTintColor='#C8C7CC'
-                                        thumbTintColor='#6CA4FC'
-                                        onValueChange={onSliderValueChange}
-                                        step={1}
-                                        value={breakInfo.duration}
-                                    /><View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '98%', }}>
-                                        <Text>1s</Text>
-                                        <Text>60s</Text>
+                        {isMenuVisible && (
+                            <View style={styles.menuContainer}>
+                                <TouchableOpacity onPress={() => setIsMenuVisible(false)}>
+                                    <View style={{ alignItems: 'center', justifyContent: 'center' }} >
+                                        <Icon name="chevron-down-outline" size={24} color="#6CA4FC" />
                                     </View>
-
-                                    <Text style={{ alignSelf: 'center', color: '#2B3270', fontWeight: 'bold' }}>{breakInfo.value} s</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.modalButtonContainer}>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => setModalBreakVisible(false)}>
-                                    <Text style={{ color: '#2B3270' }}>Cancel</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={onBreakSubmit}>
-                                    <Text style={{ color: '#FFFFFF' }}>Submit</Text>
+                                <TouchableOpacity style={styles.menuItemElip}>
+                                    <Text style={styles.menuText}>Overview</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.menuItemElip}>
+                                    <Text style={[styles.menuText, { color: '#6CA4FC' }]}>Set Voice</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.menuItemElip}>
+                                    <Text style={[styles.menuText, { color: '#6CA4FC' }]}>Set Language</Text>
                                 </TouchableOpacity>
                             </View>
-                        </View>
+                        )}
                     </View>
-                </Modal>
 
-                <Modal animationType='slide' transparent={true} visible={modalPitchVisible}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
 
-                            <View style={styles.modalHeader}>
-                                <TouchableOpacity onPress={() => setModalPitchVisible(false)}>
+
+
+                    <Modal animationType='slide' transparent={true} visible={modalBreakVisible}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+                                <TouchableOpacity onPress={() => setModalBreakVisible(false)}>
                                     <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
                                 </TouchableOpacity>
-                                <Text style={styles.modalTitle}>Set Tone Option</Text>
+                                <Text style={styles.modalTitle}>Set Break Point Time</Text>
 
-                            </View>
+                                <View style={styles.modalBreakInputContainer}>
+                                    <View style={styles.modalBreakDurationContainer}>
 
-                            <View style={styles.modalBreakInputContainer}>
+                                        <Slider
+                                            style={{ width: '100%', height: 40, }}
+                                            minimumValue={1}
+                                            maximumValue={60}
+                                            minimumTrackTintColor='#6CA4FC'
+                                            maximumTrackTintColor='#C8C7CC'
+                                            thumbTintColor='#6CA4FC'
+                                            onValueChange={onSliderValueChange}
+                                            step={1}
+                                            value={breakInfo.duration}
+                                        /><View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '98%', }}>
+                                            <Text>1s</Text>
+                                            <Text>60s</Text>
+                                        </View>
 
-                                <View style={styles.sliderContainer}>
-                                    <Slider
-                                        style={{ width: '100%', height: 40 }}
-                                        minimumValue={0}
-                                        maximumValue={4}
-                                        minimumTrackTintColor='#6CA4FC'
-                                        maximumTrackTintColor='#C8C7CC'
-                                        thumbTintColor='#6CA4FC'
-                                        onValueChange={(value) => {
-                                            const options = ['x-low', 'low', 'medium', 'high', 'x-high'];
-                                            setPitchInfo({
-                                                ...pitchInfo,
-                                                value: options[value]
-                                            });
-                                        }}
-                                        step={1}
-                                        value={['x-low', 'low', 'medium', 'high', 'x-high'].indexOf(pitchInfo.value)}
-                                    />
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '98%', }}>
-                                        <Text style={{ color: 'gray' }}>x-low</Text>
-                                        <Text style={{ color: 'gray' }}>x-High</Text>
+                                        <Text style={{ alignSelf: 'center', color: '#2B3270', fontWeight: 'bold' }}>{breakInfo.value} s</Text>
                                     </View>
+                                </View>
 
-                                    <Text style={{ alignSelf: 'center', color: '#2B3270', fontWeight: 'bold' }}>{pitchInfo.value}</Text>
+                                <View style={styles.modalButtonContainer}>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => setModalBreakVisible(false)}>
+                                        <Text style={{ color: '#2B3270' }}>Cancel</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={onBreakSubmit}>
+                                        <Text style={{ color: '#FFFFFF' }}>Submit</Text>
+                                    </TouchableOpacity>
                                 </View>
                             </View>
-
-                            <View style={styles.modalButtonContainer}>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={onPitchSubmit}>
-                                    <Text style={{ color: '#FFFFFF' }}>Submit</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={onPitchSetAsDefault}>
-                                    <Text style={{ color: '#2B3270' }}>Set as Default</Text>
-                                </TouchableOpacity>
-                            </View>
                         </View>
-                    </View>
-                </Modal>
+                    </Modal>
 
-                <Modal animationType='slide' transparent={true} visible={modalRateVisible}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
+                    <Modal animationType='slide' transparent={true} visible={modalPitchVisible}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
 
-                            <View style={styles.modalHeader}>
-                                <TouchableOpacity onPress={() => setModalRateVisible(false)}>
-                                    <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
-                                </TouchableOpacity>
-                                <Text style={styles.modalTitle}>Set Speed Option</Text>
+                                <View style={styles.modalHeader}>
+                                    <TouchableOpacity onPress={() => setModalPitchVisible(false)}>
+                                        <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.modalTitle}>Set Tone Option</Text>
 
-                            </View>
-
-                            <View style={styles.modalBreakInputContainer}>
-
-                                <View style={styles.sliderContainer}>
-                                    <Slider
-                                        style={{ width: '100%', height: 40 }}
-                                        minimumValue={0}
-                                        maximumValue={4}
-                                        minimumTrackTintColor='#6CA4FC'
-                                        maximumTrackTintColor='#C8C7CC'
-                                        thumbTintColor='#6CA4FC'
-                                        onValueChange={(value) => {
-                                            const options = ['x-slow', 'slow', 'medium', 'fast', 'x-fast'];
-                                            setRateInfo({
-                                                ...rateInfo,
-                                                value: options[value]
-                                            });
-                                        }}
-                                        step={1}
-                                        value={['x-slow', 'slow', 'medium', 'fast', 'x-fast'].indexOf(rateInfo.value)}
-                                    />
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '98%', }}>
-                                        <Text style={{ color: 'gray' }}>x-slow</Text>
-                                        <Text style={{ color: 'gray' }}>x-fast</Text>
-                                    </View>
-
-                                    <Text style={{ alignSelf: 'center', color: '#2B3270', fontWeight: 'bold' }}>{rateInfo.value}</Text>
                                 </View>
-                            </View>
 
-                            <View style={styles.modalButtonContainer}>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={onRateSubmit}>
-                                    <Text style={{ color: '#FFFFFF' }}>Submit</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={onRateSetAsDefault}>
-                                    <Text style={{ color: '#2B3270' }}>Set as Default</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
+                                <View style={styles.modalBreakInputContainer}>
 
-                <Modal animationType='slide' transparent={true} visible={modalVolumeVisible}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
-
-                            <View style={styles.modalHeader}>
-                                <TouchableOpacity onPress={() => setModalVolumeVisible(false)}>
-                                    <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
-                                </TouchableOpacity>
-                                <Text style={styles.modalTitle}>Set Volume Option</Text>
-
-                            </View>
-
-                            <View style={styles.modalBreakInputContainer}>
-
-                                <View style={styles.sliderContainer}>
-                                    <Slider
-                                        style={{ width: '100%', height: 40 }}
-                                        minimumValue={0}
-                                        maximumValue={5}
-                                        minimumTrackTintColor='#6CA4FC'
-                                        maximumTrackTintColor='#C8C7CC'
-                                        thumbTintColor='#6CA4FC'
-                                        onValueChange={(value) => {
-                                            const options = ['silent', 'x-soft', 'soft', 'medium', 'loud', 'x-loud'];
-                                            setVolumeInfo({
-                                                ...volumeInfo,
-                                                value: options[value]
-                                            });
-                                        }}
-                                        step={1}
-                                        value={['silent', 'x-soft', 'soft', 'medium', 'loud', 'x-loud'].indexOf(volumeInfo.value)}
-                                    />
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '98%', }}>
-                                        <Text style={{ color: 'gray' }}>silent</Text>
-                                        <Text style={{ color: 'gray' }}>x-loud</Text>
-                                    </View>
-
-                                    <Text style={{ alignSelf: 'center', color: '#2B3270', fontWeight: 'bold' }}>{volumeInfo.value}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.modalButtonContainer}>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={onVolumeSubmit}>
-                                    <Text style={{ color: '#FFFFFF' }}>Submit</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={onVolumeSetAsDefault}>
-                                    <Text style={{ color: '#2B3270' }}>Set as Default</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
-
-                <Modal animationType='slide' transparent={true} visible={modalSentenceVisible}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
-
-                            <View style={styles.modalHeader}>
-                                <TouchableOpacity onPress={() => setModalSentenceVisible(false)}>
-                                    <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
-                                </TouchableOpacity>
-                                <Text style={styles.modalTitle}>Set sentence</Text>
-
-                            </View>
-
-                            <View style={styles.modalBreakInputContainer}>
-
-                                <Text style={{ marginTop: 20, color: 'gray' }}>Do you want to set the selected text as sentence ?</Text>
-
-                            </View>
-
-                            <View style={styles.modalButtonContainer}>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => onSentenceSubmit()}>
-                                    <Text style={{ color: '#FFFFFF' }}>Yes</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => setModalSentenceVisible(false)}>
-                                    <Text style={{ color: '#2B3270' }}>No</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
-
-                <Modal animationType='slide' transparent={true} visible={modalParaVisible}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
-
-                            <View style={styles.modalHeader}>
-                                <TouchableOpacity onPress={() => setModalParaVisible(false)}>
-                                    <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
-                                </TouchableOpacity>
-                                <Text style={styles.modalTitle}>Set paragraph</Text>
-
-                            </View>
-
-                            <View style={styles.modalBreakInputContainer}>
-
-                                <Text style={{ marginTop: 20, color: 'gray' }}>Do you want to set the selected text as paragraph ?</Text>
-
-                            </View>
-
-                            <View style={styles.modalButtonContainer}>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => onParaSubmit()}>
-                                    <Text style={{ color: '#FFFFFF' }}>Yes</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => setModalParaVisible(false)}>
-                                    <Text style={{ color: '#2B3270' }}>No</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
-
-                <Modal animationType='slide' transparent={true} visible={modalSpellVisible}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
-
-                            <View style={styles.modalHeader}>
-                                <TouchableOpacity onPress={() => setModalSpellVisible(false)}>
-                                    <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
-                                </TouchableOpacity>
-                                <Text style={styles.modalTitle}>Set a Spelling Word </Text>
-
-                            </View>
-
-                            <View style={styles.modalBreakInputContainer}>
-
-                                <Text style={{ marginTop: 20, color: 'gray' }}>Do you want to set <Text style={{ fontWeight: 'bold', color: '#2B3270' }}>{"\"" + lastSelection.selectedText + "\""}</Text> as a spelling word ?</Text>
-                            </View>
-
-                            <View style={styles.modalButtonContainer}>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => onSpellSubmit()}>
-                                    <Text style={{ color: '#FFFFFF' }}>Yes</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => setModalSpellVisible(false)}>
-                                    <Text style={{ color: '#2B3270' }}>No</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
-
-                <Modal animationType='slide' transparent={true} visible={modalEmphasisVisible}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
-
-                            <View style={styles.modalHeader}>
-                                <TouchableOpacity onPress={() => setModalEmphasisVisible(false)}>
-                                    <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
-                                </TouchableOpacity>
-                                <Text style={styles.modalTitle}>Set Emphasis Option</Text>
-
-                            </View>
-
-                            <View style={styles.modalBreakInputContainer}>
-
-                                <View style={styles.sliderContainer}>
-                                    <Slider
-                                        style={{ width: '100%', height: 40 }}
-                                        minimumValue={0}
-                                        maximumValue={3}
-                                        minimumTrackTintColor='#6CA4FC'
-                                        maximumTrackTintColor='#C8C7CC'
-                                        thumbTintColor='#6CA4FC'
-                                        onValueChange={(value) => {
-                                            const options = ['none', 'reduced', 'moderate', 'strong'];
-                                            setEmphasisInfo({
-                                                ...emphasisInfo,
-                                                value: options[value]
-                                            });
-                                        }}
-                                        step={1}
-                                        value={['none', 'reduced', 'moderate', 'strong'].indexOf(emphasisInfo.value)}
-                                    />
-                                    <View style={styles.modalOption}>
-                                        <Text style={{ color: 'gray' }}>none</Text>
-                                        <Text style={{ color: 'gray' }}>strong</Text>
-                                    </View>
-
-                                    <Text style={{ alignSelf: 'center', color: '#2B3270', fontWeight: 'bold' }}>{emphasisInfo.value}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.modalButtonContainer}>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={onEmphasisSubmit}>
-                                    <Text style={{ color: '#FFFFFF' }}>Submit</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={onEmphasisSetAsDefault}>
-                                    <Text style={{ color: '#2B3270' }}>Set as Default</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
-
-                <Modal animationType='slide' transparent={true} visible={modalAbbVisible}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
-                            <View style={styles.modalHeader}>
-                                <TouchableOpacity onPress={() => setModalAbbVisible(false)}>
-                                    <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
-                                </TouchableOpacity>
-                                <Text style={styles.modalTitle}>Set Unabbreviated Words </Text>
-                            </View>
-                            <View style={styles.modalBreakInputContainer}>
-                                <View style={styles.sliderContainer}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <Text style={{ color: '#2B3270', fontWeight: 'bold' }}>{"\"" + lastSelection.selectedText + "\""}</Text>
-                                        <TextInput
-                                            placeholder="Enter unabbreviated words here..."
-                                            placeholderTextColor="#ccc"
-                                            onChangeText={(text) => setInputValue(text)}
-                                            value={inputValue}
-                                            style={styles.Modalinput}
-                                            underlineColor="#FFF"
-                                            activeUnderlineColor='#6CA4FC'
-                                            multiline={true}
-                                            numberOfLines={2}
+                                    <View style={styles.sliderContainer}>
+                                        <Slider
+                                            style={{ width: '100%', height: 40 }}
+                                            minimumValue={0}
+                                            maximumValue={4}
+                                            minimumTrackTintColor='#6CA4FC'
+                                            maximumTrackTintColor='#C8C7CC'
+                                            thumbTintColor='#6CA4FC'
+                                            onValueChange={(value) => {
+                                                const options = ['x-low', 'low', 'medium', 'high', 'x-high'];
+                                                setPitchInfo({
+                                                    ...pitchInfo,
+                                                    value: options[value]
+                                                });
+                                            }}
+                                            step={1}
+                                            value={['x-low', 'low', 'medium', 'high', 'x-high'].indexOf(pitchInfo.value)}
                                         />
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '98%', }}>
+                                            <Text style={{ color: 'gray' }}>x-low</Text>
+                                            <Text style={{ color: 'gray' }}>x-High</Text>
+                                        </View>
+
+                                        <Text style={{ alignSelf: 'center', color: '#2B3270', fontWeight: 'bold' }}>{pitchInfo.value}</Text>
                                     </View>
                                 </View>
-                            </View>
-                            <View style={styles.modalButtonContainer}>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => onAbbSubmit(inputValue)}>
-                                    <Text style={{ color: '#FFFFFF' }}>Submit</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={cancelAbb}>
-                                    <Text style={{ color: '#2B3270' }}>Cancel</Text>
-                                </TouchableOpacity>
+
+                                <View style={styles.modalButtonContainer}>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={onPitchSubmit}>
+                                        <Text style={{ color: '#FFFFFF' }}>Submit</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={onPitchSetAsDefault}>
+                                        <Text style={{ color: '#2B3270' }}>Set as Default</Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                         </View>
-                    </View>
-                </Modal>
+                    </Modal>
 
-                <Modal animationType='slide' transparent={true} visible={modalCardinalVisible}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
-                            <View style={styles.modalHeader}>
-                                <TouchableOpacity onPress={() => setModalCardinalVisible(false)}>
-                                    <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
-                                </TouchableOpacity>
-                                <Text style={styles.modalTitle}>Set Cardinal Number </Text>
+                    <Modal animationType='slide' transparent={true} visible={modalRateVisible}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+
+                                <View style={styles.modalHeader}>
+                                    <TouchableOpacity onPress={() => setModalRateVisible(false)}>
+                                        <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.modalTitle}>Set Speed Option</Text>
+
+                                </View>
+
+                                <View style={styles.modalBreakInputContainer}>
+
+                                    <View style={styles.sliderContainer}>
+                                        <Slider
+                                            style={{ width: '100%', height: 40 }}
+                                            minimumValue={0}
+                                            maximumValue={4}
+                                            minimumTrackTintColor='#6CA4FC'
+                                            maximumTrackTintColor='#C8C7CC'
+                                            thumbTintColor='#6CA4FC'
+                                            onValueChange={(value) => {
+                                                const options = ['x-slow', 'slow', 'medium', 'fast', 'x-fast'];
+                                                setRateInfo({
+                                                    ...rateInfo,
+                                                    value: options[value]
+                                                });
+                                            }}
+                                            step={1}
+                                            value={['x-slow', 'slow', 'medium', 'fast', 'x-fast'].indexOf(rateInfo.value)}
+                                        />
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '98%', }}>
+                                            <Text style={{ color: 'gray' }}>x-slow</Text>
+                                            <Text style={{ color: 'gray' }}>x-fast</Text>
+                                        </View>
+
+                                        <Text style={{ alignSelf: 'center', color: '#2B3270', fontWeight: 'bold' }}>{rateInfo.value}</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.modalButtonContainer}>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={onRateSubmit}>
+                                        <Text style={{ color: '#FFFFFF' }}>Submit</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={onRateSetAsDefault}>
+                                        <Text style={{ color: '#2B3270' }}>Set as Default</Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
-                            <View style={styles.modalBreakInputContainer}>
-                                {isNaN(lastSelection.selectedText) ? (
-                                    <View>
+                        </View>
+                    </Modal>
+
+                    <Modal animationType='slide' transparent={true} visible={modalVolumeVisible}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+
+                                <View style={styles.modalHeader}>
+                                    <TouchableOpacity onPress={() => setModalVolumeVisible(false)}>
+                                        <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.modalTitle}>Set Volume Option</Text>
+
+                                </View>
+
+                                <View style={styles.modalBreakInputContainer}>
+
+                                    <View style={styles.sliderContainer}>
+                                        <Slider
+                                            style={{ width: '100%', height: 40 }}
+                                            minimumValue={0}
+                                            maximumValue={5}
+                                            minimumTrackTintColor='#6CA4FC'
+                                            maximumTrackTintColor='#C8C7CC'
+                                            thumbTintColor='#6CA4FC'
+                                            onValueChange={(value) => {
+                                                const options = ['silent', 'x-soft', 'soft', 'medium', 'loud', 'x-loud'];
+                                                setVolumeInfo({
+                                                    ...volumeInfo,
+                                                    value: options[value]
+                                                });
+                                            }}
+                                            step={1}
+                                            value={['silent', 'x-soft', 'soft', 'medium', 'loud', 'x-loud'].indexOf(volumeInfo.value)}
+                                        />
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '98%', }}>
+                                            <Text style={{ color: 'gray' }}>silent</Text>
+                                            <Text style={{ color: 'gray' }}>x-loud</Text>
+                                        </View>
+
+                                        <Text style={{ alignSelf: 'center', color: '#2B3270', fontWeight: 'bold' }}>{volumeInfo.value}</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.modalButtonContainer}>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={onVolumeSubmit}>
+                                        <Text style={{ color: '#FFFFFF' }}>Submit</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={onVolumeSetAsDefault}>
+                                        <Text style={{ color: '#2B3270' }}>Set as Default</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    </Modal>
+
+                    <Modal animationType='slide' transparent={true} visible={modalSentenceVisible}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+
+                                <View style={styles.modalHeader}>
+                                    <TouchableOpacity onPress={() => setModalSentenceVisible(false)}>
+                                        <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.modalTitle}>Set sentence</Text>
+
+                                </View>
+
+                                <View style={styles.modalBreakInputContainer}>
+
+                                    <Text style={{ marginTop: 20, color: 'gray' }}>Do you want to set the selected text as sentence ?</Text>
+
+                                </View>
+
+                                <View style={styles.modalButtonContainer}>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => onSentenceSubmit()}>
+                                        <Text style={{ color: '#FFFFFF' }}>Yes</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => setModalSentenceVisible(false)}>
+                                        <Text style={{ color: '#2B3270' }}>No</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    </Modal>
+
+                    <Modal animationType='slide' transparent={true} visible={modalParaVisible}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+
+                                <View style={styles.modalHeader}>
+                                    <TouchableOpacity onPress={() => setModalParaVisible(false)}>
+                                        <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.modalTitle}>Set paragraph</Text>
+
+                                </View>
+
+                                <View style={styles.modalBreakInputContainer}>
+
+                                    <Text style={{ marginTop: 20, color: 'gray' }}>Do you want to set the selected text as paragraph ?</Text>
+
+                                </View>
+
+                                <View style={styles.modalButtonContainer}>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => onParaSubmit()}>
+                                        <Text style={{ color: '#FFFFFF' }}>Yes</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => setModalParaVisible(false)}>
+                                        <Text style={{ color: '#2B3270' }}>No</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    </Modal>
+
+                    <Modal animationType='slide' transparent={true} visible={modalSpellVisible}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+
+                                <View style={styles.modalHeader}>
+                                    <TouchableOpacity onPress={() => setModalSpellVisible(false)}>
+                                        <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.modalTitle}>Set a Spelling Word </Text>
+
+                                </View>
+
+                                <View style={styles.modalBreakInputContainer}>
+
+                                    <Text style={{ marginTop: 20, color: 'gray' }}>Do you want to set <Text style={{ fontWeight: 'bold', color: '#2B3270' }}>{"\"" + lastSelection.selectedText + "\""}</Text> as a spelling word ?</Text>
+                                </View>
+
+                                <View style={styles.modalButtonContainer}>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => onSpellSubmit()}>
+                                        <Text style={{ color: '#FFFFFF' }}>Yes</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => setModalSpellVisible(false)}>
+                                        <Text style={{ color: '#2B3270' }}>No</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    </Modal>
+
+                    <Modal animationType='slide' transparent={true} visible={modalEmphasisVisible}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+
+                                <View style={styles.modalHeader}>
+                                    <TouchableOpacity onPress={() => setModalEmphasisVisible(false)}>
+                                        <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.modalTitle}>Set Emphasis Option</Text>
+
+                                </View>
+
+                                <View style={styles.modalBreakInputContainer}>
+
+                                    <View style={styles.sliderContainer}>
+                                        <Slider
+                                            style={{ width: '100%', height: 40 }}
+                                            minimumValue={0}
+                                            maximumValue={3}
+                                            minimumTrackTintColor='#6CA4FC'
+                                            maximumTrackTintColor='#C8C7CC'
+                                            thumbTintColor='#6CA4FC'
+                                            onValueChange={(value) => {
+                                                const options = ['none', 'reduced', 'moderate', 'strong'];
+                                                setEmphasisInfo({
+                                                    ...emphasisInfo,
+                                                    value: options[value]
+                                                });
+                                            }}
+                                            step={1}
+                                            value={['none', 'reduced', 'moderate', 'strong'].indexOf(emphasisInfo.value)}
+                                        />
+                                        <View style={styles.modalOption}>
+                                            <Text style={{ color: 'gray' }}>none</Text>
+                                            <Text style={{ color: 'gray' }}>strong</Text>
+                                        </View>
+
+                                        <Text style={{ alignSelf: 'center', color: '#2B3270', fontWeight: 'bold' }}>{emphasisInfo.value}</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.modalButtonContainer}>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={onEmphasisSubmit}>
+                                        <Text style={{ color: '#FFFFFF' }}>Submit</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={onEmphasisSetAsDefault}>
+                                        <Text style={{ color: '#2B3270' }}>Set as Default</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    </Modal>
+
+                    <Modal animationType='slide' transparent={true} visible={modalAbbVisible}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+                                <View style={styles.modalHeader}>
+                                    <TouchableOpacity onPress={() => setModalAbbVisible(false)}>
+                                        <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.modalTitle}>Set Unabbreviated Words </Text>
+                                </View>
+                                <View style={styles.modalBreakInputContainer}>
+                                    <View style={styles.sliderContainer}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Text style={{ color: '#2B3270', fontWeight: 'bold' }}>{"\"" + lastSelection.selectedText + "\""}</Text>
+                                            <TextInput
+                                                placeholder="Enter unabbreviated words here..."
+                                                placeholderTextColor="#ccc"
+                                                onChangeText={(text) => setInputValue(text)}
+                                                value={inputValue}
+                                                style={styles.Modalinput}
+                                                underlineColor="#FFF"
+                                                activeUnderlineColor='#6CA4FC'
+                                                multiline={true}
+                                                numberOfLines={2}
+                                            />
+                                        </View>
+                                    </View>
+                                </View>
+                                <View style={styles.modalButtonContainer}>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => onAbbSubmit(inputValue)}>
+                                        <Text style={{ color: '#FFFFFF' }}>Submit</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={cancelAbb}>
+                                        <Text style={{ color: '#2B3270' }}>Cancel</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    </Modal>
+
+                    <Modal animationType='slide' transparent={true} visible={modalCardinalVisible}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+                                <View style={styles.modalHeader}>
+                                    <TouchableOpacity onPress={() => setModalCardinalVisible(false)}>
+                                        <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.modalTitle}>Set Cardinal Number </Text>
+                                </View>
+                                <View style={styles.modalBreakInputContainer}>
+                                    {isNaN(lastSelection.selectedText) ? (
+                                        <View>
                                             <View style={{ flexDirection: 'row', marginTop: 20, marginRight: 15, alignItems: 'center', }}>
                                                 <Icon name="alert-circle-outline" style={{ color: 'red' }} size={28} />
                                                 <Text style={{ color: 'red', marginLeft: 10 }}>The selected text must be a number !</Text>
                                             </View>
+                                            <View style={styles.modalButtonContainer}>
+                                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => setModalCardinalVisible(false)}>
+                                                    <Text style={{ color: '#FFFFFF' }}>OK</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    ) : (<View>
+                                        <Text style={{ marginTop: 20, color: 'gray' }}>Are you sure you want to set <Text style={{ fontWeight: 'bold', color: '#2B3270' }}>{"\"" + lastSelection.selectedText + "\""}</Text> as cardinal number ?</Text>
+
                                         <View style={styles.modalButtonContainer}>
-                                            <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => setModalCardinalVisible(false)}>
-                                                <Text style={{ color: '#FFFFFF' }}>OK</Text>
+                                            <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => onCardinalSubmit()}>
+                                                <Text style={{ color: '#FFFFFF' }}>Yes</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => setModalCardinalVisible(false)}>
+                                                <Text style={{ color: '#2B3270' }}>No</Text>
                                             </TouchableOpacity>
                                         </View>
                                     </View>
-                                ) : (<View>
-                                    <Text style={{ marginTop: 20, color: 'gray' }}>Are you sure you want to set <Text style={{ fontWeight: 'bold', color: '#2B3270' }}>{"\"" + lastSelection.selectedText + "\""}</Text> as cardinal number ?</Text>
-
-                                    <View style={styles.modalButtonContainer}>
-                                        <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => onCardinalSubmit()}>
-                                            <Text style={{ color: '#FFFFFF' }}>Yes</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => setModalCardinalVisible(false)}>
-                                            <Text style={{ color: '#2B3270' }}>No</Text>
-                                        </TouchableOpacity>
-                                    </View>
+                                    )}
                                 </View>
-                                )}
-                            </View>
 
+                            </View>
                         </View>
-                    </View>
-                </Modal>
+                    </Modal>
 
-                <Modal animationType='slide' transparent={true} visible={modalOrdinalVisible}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
-                            <View style={styles.modalHeader}>
-                                <TouchableOpacity onPress={() => setModalOrdinalVisible(false)}>
-                                    <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
-                                </TouchableOpacity>
-                                <Text style={styles.modalTitle}>Set Ordinal Number </Text>
-                            </View>
-                            <View style={styles.modalBreakInputContainer}>
-                                {isNaN(lastSelection.selectedText) ? (
-                                    <View>
+                    <Modal animationType='slide' transparent={true} visible={modalOrdinalVisible}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+                                <View style={styles.modalHeader}>
+                                    <TouchableOpacity onPress={() => setModalOrdinalVisible(false)}>
+                                        <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.modalTitle}>Set Ordinal Number </Text>
+                                </View>
+                                <View style={styles.modalBreakInputContainer}>
+                                    {isNaN(lastSelection.selectedText) ? (
+                                        <View>
                                             <View style={{ flexDirection: 'row', marginTop: 20, marginRight: 15, alignItems: 'center', }}>
                                                 <Icon name="alert-circle-outline" style={{ color: 'red' }} size={28} />
                                                 <Text style={{ color: 'red', marginLeft: 10 }}>The selected text must be a number !</Text>
                                             </View>
-                                    <View style={styles.modalButtonContainer}>
-                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => setModalOrdinalVisible(false)}>
-                                            <Text style={{ color: '#FFFFFF' }}>OK</Text>
-                                        </TouchableOpacity>
+                                            <View style={styles.modalButtonContainer}>
+                                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => setModalOrdinalVisible(false)}>
+                                                    <Text style={{ color: '#FFFFFF' }}>OK</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    ) : (<View>
+                                        <Text style={{ marginTop: 20, color: 'gray' }}>Are you sure you want to set <Text style={{ fontWeight: 'bold', color: '#2B3270' }}>{"\"" + lastSelection.selectedText + "\""}</Text> as ordinal number ?</Text>
+
+                                        <View style={styles.modalButtonContainer}>
+                                            <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => onOrdinalSubmit()}>
+                                                <Text style={{ color: '#FFFFFF' }}>Yes</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => setModalOrdinalVisible(false)}>
+                                                <Text style={{ color: '#2B3270' }}>No</Text>
+                                            </TouchableOpacity>
                                         </View>
                                     </View>
-                                ) : (<View>
-                                    <Text style={{ marginTop: 20, color: 'gray' }}>Are you sure you want to set <Text style={{ fontWeight: 'bold', color: '#2B3270' }}>{"\"" + lastSelection.selectedText + "\""}</Text> as ordinal number ?</Text>
-                                        
-                                    <View style={styles.modalButtonContainer}>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => onOrdinalSubmit()}>
-                                    <Text style={{ color: '#FFFFFF' }}>Yes</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => setModalOrdinalVisible(false)}>
-                                    <Text style={{ color: '#2B3270' }}>No</Text>
-                                </TouchableOpacity>
+                                    )}
+                                </View>
+
                             </View>
-                                    </View>
-                                )}
-                            </View>
-                            
                         </View>
-                    </View>
-                </Modal>
+                    </Modal>
                     <Modal animationType='slide' transparent={true} visible={showDiscardModal}>
                         <View style={styles.modalContainer}>
                             <View style={styles.modalContent}>
@@ -1473,14 +1508,111 @@ CREATE TABLE IF NOT EXISTS DOCS (
                             </View>
                         </View>
                     </Modal>
-                   
+                    <Modal
+                        visible={showPreviewModal}
+                        animationType="slide"
+                        transparent={true}
+                    >
+                        <Provider>
+                            <View style={styles.previewModalContainer}>
+                                <TouchableOpacity
+                                    style={styles.separatorLine}
+                                    onPress={() => setShowPreviewModal(false)}
+                                />
+
+                                <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                                    {[1, 2, 3, 4, 5].map((card, index) => (
+                                        <View key={index} style={styles.cardContainer}>
+                                            <Card style={styles.card} elevation={4}>
+                                                <Card.Title
+                                                    title="Emphasis"
+                                                    titleStyle={styles.title}
+                                                    right={(props) => (
+                                                        <IconButton
+                                                            mode="contained-tonal"
+                                                            icon="trash-can-outline"
+
+                                                            iconColor="#FFF"
+                                                            animated="true"
+                                                            size={24}
+                                                            //  onPress={handleDelete}
+                                                            style={{
+                                                                backgroundColor: "#E57373",
+                                                                borderRadius: 50,
+                                                                padding: 8,
+                                                                shadowColor: '#000',
+                                                                shadowOffset: { width: 0, height: 2 },
+                                                                shadowOpacity: 0.8,
+                                                                shadowRadius: 2,
+                                                                elevation: 5,
+                                                                marginLeft: 8,
+                                                            }}
+                                                        />
+                                                    )}
+                                                />
+                                                <Card.Content>
+                                                    <Text style={styles.content}>
+                                                        Card content new content new configs ard content new content new configsard content new content new configsard content new content new configs
+                                                    </Text>
+                                                    <Divider />
+                                                </Card.Content>
+                                                <Card.Actions style={styles.actions}>
+                                                    <View style={styles.updatePickerContainer}>
+                                                        <Text style={styles.strongText}>Strong</Text>
+                                                        <View style={styles.pickerWrapper}>
+                                                            <Picker
+                                                                dropdownIconRippleColor="#6CA4FC"
+                                                                dropdownIconColor="#2B3270"
+                                                                mode="dropdown"
+                                                                prompt="Voice gender"
+                                                               
+                                                                style={styles.updateDropdown}
+
+                                                                selectedValue={selectedVoiceGender}
+                                                                onValueChange={onVoiceGenderChange}
+                                                            >
+                                                                <Picker.Item
+                                                                    label="Update option"
+                                                                    value="Update option"
+                                                                    style={{ fontWeight: 'bold', color: 'gray' }}
+                                                                />
+                                                                <Picker.Item label="Medium" value="Medium" />
+                                                                <Picker.Item label="Low" value="Low" />
+                                                            </Picker>
+                                                        </View>
+                                                    </View>
+                                                </Card.Actions>
+                                            </Card>
 
 
-                <Soundplayer url={urlFromDB} />
+                                            {/*<View style={styles.card}>
+                                            <ScrollView style={{ flex: 1 }}>
+                                                <Text style={styles.cardText}>
+                                                    Google Cloud Text-to-Speech
+                                                </Text>
+                                            </ScrollView>
+                                            <TouchableOpacity style={styles.deleteButton}>
+                                                <Icon
+                                                    name="trash-outline"
+                                                    size={24}
+                                                    color="#F5B7B1"
+                                                    style={styles.deleteButtonText}
+                                                />
+                                            </TouchableOpacity>
+                                        </View>*/}
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        </Provider>
+                    </Modal>
 
-            </View>
-        
-        </SafeAreaView>
+
+                    <Soundplayer url={urlFromDB} />
+
+
+                </View>
+            </SafeAreaView>
         </Provider >
 
     );
@@ -1776,6 +1908,8 @@ const styles = StyleSheet.create({
     pickerContainer: {
         marginHorizontal: 2,
         flex: 1,
+
+
     },
     dropdownContainer: {
         height: 50,
@@ -1786,9 +1920,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         justifyContent: 'center',
         alignItems: 'center',
+
     },
     dropdown: {
         width: '130%',
+
     },
     ellipsisMenuItem: {
         marginLeft: 10,
@@ -1804,36 +1940,141 @@ const styles = StyleSheet.create({
     previewModalContainer: {
         position: 'absolute',
         bottom: 0,
-        width: '100%',
-        height: '50%',
+        left: 5,
+        right: 5,
+        height: '90%',
+        backgroundColor: '#FFFFFF',
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
-        backgroundColor: '#fff',
         paddingHorizontal: 20,
-        paddingVertical: 10,
+        paddingVertical: 30,
+        zIndex: 30,
+        shadowColor: '#000000',
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 30,
     },
-    previewModalHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
+
+    separatorLine: {
+        height: 3,
+        width: '30%',
+        backgroundColor: '#CCCCCC',
+        alignSelf: 'center',
+        marginTop: 10,
+        marginBottom: 10,
     },
-    previewModalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
+
+    cardText: {
+
+        fontSize: 14,
+        marginTop: 0,
+        //fontWeight: 'bold',
+        color: "#2B3270"
     },
-    previewModalCloseButton: {
-        padding: 10,
-    },
-    previewModalContent: {
+    deleteButton: {
+        backgroundColor: "#E57373",
+        borderRadius: 50,
+        padding: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.8,
+        shadowRadius: 2,
+        elevation: 5,
+        left: 40,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    previewModalText: {
+    deleteButtonText: {
+        color: "#fff",
         fontSize: 16,
-        textAlign: 'center',
+        fontWeight: "bold",
     },
+    cardTopLeftText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: 'gray'
+    },
+    cardTextContainer: {
+        flexGrow: 1,
+    },
+    card: {
+        margin: 16,
+        borderRadius: 16,
+        backgroundColor: '#fff',
+        width: 290,
+    },
+
+    title: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    iconButton: {
+        margin: -8,
+    },
+    content: {
+        fontSize: 16,
+        color:'gray',
+        lineHeight: 24,
+        marginVertical: 16,
+    },
+    actions: {
+        justifyContent: 'flex-end',
+    },
+    menuButton: {
+        borderRadius: 16,
+    },
+    menuButtonLabel: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    menuAnchor: {
+        position: 'absolute',
+        top: 4,
+        right: 4,
+    },
+    menuAnchorIcon: {
+        backgroundColor: 'transparent',
+    },
+    menuContent: {
+        borderRadius: 16,
+        marginHorizontal: 8,
+    },
+    updatePickerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    strongText: {
+        fontWeight: 'bold',
+        fontSize: 16,
+        color:"#2B3270"
+    },
+    pickerWrapper: {
+        flex: 1,
+        marginLeft: 16,
+        backgroundColor: '#ccc',
+        borderRadius:30,
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+    updateDropdown: {
+        
+        backgroundColor: '#fff',
+        paddingHorizontal: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
+
+
+
+
+
+
 });
 
 
