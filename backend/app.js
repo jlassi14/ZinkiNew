@@ -21,7 +21,89 @@ require('./Routes/index')(app);
 
 
 
-const input = "<speak> hi every one<say-as interpret-as='ordinal'>3rd</say-as><emphasis level='strong'>important</emphasis>Hello, world!</speak>";
+
+const input = " hi every one<say-as interpret-as='ordinal'>3rd seconde <prosidy rate='pitch'>omar its </prosidy> to </say-as><emphasis level='strong'>important byt gh </emphasis>tHello, ttworld!";
+
+var tag= '';
+
+
+function parseSpeech(input) {
+  let insideTag = false;
+  let tagStack = [];
+let output = '';
+
+  for (let i = 0; i < input.length; i++) {
+      if (input[i] == "<" && input[i+1] !== "/") {
+        //console.log('input[i] :', input[i] , 'input[i]+1: ', input[i]+1);
+
+        insideTag = true;
+        for (let j = i; j < input.length; j++) {
+          tag += input[j];
+          
+          if (input[j] === ">") {
+            tagStack.push(tag);
+            output += tag;
+            console.log('tagStack 1111 : ', tagStack);
+            console.log('output 111: ', output);
+            break;
+          }
+        }
+      } else if (input[i] === ">") {
+        output += input[i];
+
+        insideTag = false;
+      } else if (insideTag) {
+
+      }
+
+  }
+  console.log('tagStack 0 : ', tagStack);
+  console.log('output 0: ', output);
+
+/*
+  const results = [];
+  const tokens = input.split(/<[^>]+>/);
+  console.log('tokens',tokens)
+
+  for (const token of tokens) {
+    if (token.startsWith("<")) {
+      const tag = token.substring(1, token.indexOf("="));
+      const value = token.substring(token.indexOf("=") + 1);
+      console.log('tag',tag);
+      console.log('value',value)
+
+      if (value !== "") {
+        results.push({
+          tag,
+          text: token.substring(token.indexOf(" ") + 1, token.lastIndexOf(" ")),
+          value,
+        });
+      } else {
+        results.push({
+          tag,
+          text: token.substring(token.indexOf(" ") + 1, token.lastIndexOf(" ")),
+          value: "",
+        });
+      }
+    } else {
+      results.push({
+        tag: "",
+        text: token,
+        value: "",
+      });
+    }
+  }*/
+ // return results;
+}
+
+
+
+
+const results = parseSpeech(input);
+console.log('results: ', results);
+
+
+
 const num = 0;
 
   let position = 0;

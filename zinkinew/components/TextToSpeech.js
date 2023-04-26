@@ -7,6 +7,8 @@ import Soundplayer from './Soundplayer';
 import { Picker } from '@react-native-picker/picker';
 import SQLite from 'react-native-sqlite-storage';
 import iso6391 from 'iso-639-1'
+import IpAdress from './IpAdress';
+
 
 
 const TextToSpeech = () => {
@@ -110,7 +112,7 @@ const TextToSpeech = () => {
         const newDefaultSSML = `<speak>${textFromDB} </speak>`;
 
         try {
-            const response = await fetch('http://192.168.1.16:3000/GenerateSSML/ResetAll', {
+            const response = await fetch(`${IpAdress.IP}/GenerateSSML/ResetAll`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -120,7 +122,7 @@ const TextToSpeech = () => {
             });
             const responseData = await response.json();
             // Do something with the response data
-            console.log('responseData', responseData);
+            console.log('responseData when reset ssml', responseData);
             if (response.ok) {
                 console.log('Configs sent to server');
                 setUrl(responseData.url); // Set the url state with the responseData.url value
@@ -128,7 +130,7 @@ const TextToSpeech = () => {
                 db.transaction(tx => {
                     tx.executeSql(
                         'UPDATE DOCS SET DefaultSSML = ?, Url = ? WHERE id = ? AND UserId = ?',
-                        [newDefaultSSML, '', 4, 33], // Replace with the actual values of id and UserId, and set the Url to an empty string
+                        [newDefaultSSML, '', 49, 33], // Replace with the actual values of id and UserId, and set the Url to an empty string
                         (tx, result) => {
                             console.log('DefaultSSML updated successfully', newDefaultSSML);
                         },
@@ -490,7 +492,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
         db.transaction((tx) => {
             tx.executeSql(
                 'SELECT * FROM DOCS WHERE id = ? AND UserId = ?',
-                [15, 33],
+                [49, 33],
                 (tx, results) => {
                     const users = results.rows.raw();
                     console.log('Docs:', users);
@@ -548,7 +550,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                   const lastInsertId = result.insertId;
                   //console.log('User inserted successfully with ID ','${ lastInsertId });
   
-                  fetch('http://192.168.0.133:3000/GenerateSSML/Quota', {
+                  fetch(`${IpAdress.IP}/GenerateSSML/Quota`, {
                       method: 'POST',
                       headers: {
                           'Content-Type': 'application/json'
@@ -581,19 +583,19 @@ CREATE TABLE IF NOT EXISTS DOCS (
           });
   
           // Insert a new docs into the "Docs" table
-  
+
   
           db.transaction((tx) => {
-              tx.executeSql(insertDocsSql, ['3 مرحبا بكم في زنكي', 'image', '<speak>3 مرحبا بكم في زنكي </speak>', '33', 'http://192.168.0.133:3000/audio'], (_, result) => {
+              tx.executeSql(insertDocsSql, [' مرحبا بكم في زنكي 6 ', 'image', '<speak> مرحبا بكم في زنكي 6 </speak>', '33', `${IpAdress.IP}/audio`], (_, result) => {
                   console.log('User inserted successfully');
               }, (_, error) => {
                   console.log('Error inserting Docs:', error);
               });
           });
-  
+      */
+
           console.log('SSMLTags tab:', SSMLTags); 
   
-  */
 
     }, [SSMLTags, defaultSSMLFromDB, textFromDB, urlFromDB]);
 
@@ -602,26 +604,24 @@ CREATE TABLE IF NOT EXISTS DOCS (
     }, [inputValue]);
 
 
-
     const applyChanges = async () => {
         console.log('texttttttt', lastSelection.selectedText)
         try {
-            const response = await fetch('http://192.168.1.16:3000/GenerateSSML/test', {
+            const response = await fetch(`${IpAdress.IP}/GenerateSSML/test`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-
-                body: JSON.stringify({ DefaultSSML: defaultSSMLFromDB, SSMLTags, selectedLanguage, selectedVoiceGender })
+                body: JSON.stringify({ DefaultSSML: defaultSSMLFromDB, SSMLTags, selectedLanguage, selectedVoiceGender , id: 123456 })
 
             }); console.log('selected langugeeeeeeeeee', selectedLanguage);
             console.log('voice genderrrrrrrrr', selectedVoiceGender);
 
             const responseData = await response.json();
             // Do something with the response data
-            console.log('responseData', responseData);
+            console.log('responseData111', responseData);
 
-            if (response.ok) {
+            if (response.ok && responseData.message=='OK') {
                 console.log('Configs sent to server');
                 setUrl(responseData.url); // Set the url state with the responseData.url value
 
@@ -631,7 +631,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 db.transaction((tx) => {
                     tx.executeSql(
                         'UPDATE DOCS SET DefaultSSMl = ? , Url = ? WHERE id = ? AND UserId = ?',
-                        [responseData.SSML, responseData.url, 41, 33], // Replace with the actual values of id and UserId
+                        [responseData.SSML, responseData.url, 49, 33], // Replace with the actual values of id and UserId
                         (tx, result) => {
                             console.log('DefaultSSML updated successfully');
                         },
@@ -640,7 +640,6 @@ CREATE TABLE IF NOT EXISTS DOCS (
                         }
                     );
                 });
-
 
                 setSSMLTags([]);
             } else {
