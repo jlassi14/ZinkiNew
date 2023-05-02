@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, Modal, SafeAreaView, ScrollView, } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Modal, SafeAreaView, Image, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
+import Octicons from 'react-native-vector-icons/Octicons';
+import noDataImage from '../assets/noData.svg';
+
 import { TextInput, Button, Menu, Divider, Provider, Card, IconButton } from 'react-native-paper';
 import Slider from '@react-native-community/slider';
 import Soundplayer from './Soundplayer';
@@ -8,19 +12,57 @@ import { Picker } from '@react-native-picker/picker';
 import SQLite from 'react-native-sqlite-storage';
 import iso6391 from 'iso-639-1'
 import IpAdress from './IpAdress';
+import ModalDropdown from 'react-native-modal-dropdown';
+
 
 
 
 const TextToSpeech = () => {
 
 
-    const [dbOpened, setDbOpened] = useState(false);
     var [defaultSSMLFromDB, setDefaultSSMLFromDB] = useState("");
     var [textFromDB, settextFromDB] = useState("");
     var [urlFromDB, seturlFromDB] = useState("");
     const [url, setUrl] = useState(null);
     const TTS_API_KEY = 'AIzaSyBpKakDqYNOO4jegJsZ5X5Md-0NBLezJU0';
     const TTS_LANGUAGES_API_URL = `https://texttospeech.googleapis.com/v1beta1/voices?key=${TTS_API_KEY}`;
+    const [tabData, setTabData] = useState([
+        {
+            "text": "hello",
+            "tag": [
+                { "name": "1", "value": "speed='x-low'" },
+                { "name": "2", "value": "speed='x-low'" }
+            ]
+        },
+        {
+            "text": "ldwor ",
+            "tag": [
+                { "name": "2", "value": "pitch='x-high'" },
+                { "name": "tt", "value": "pitch='x-high'" }
+            ]
+        },
+        {
+            "text": "nice",
+            "tag": [{ "name": "sara", "value": "prenom='5s'" }]
+        },
+        {
+            "text": "world",
+            "tag": [{ "name": "sara", "value": "prenom='5s'" }]
+        },
+        // Add empty tag arrays for any new items you add to `tabData`
+    ]);
+    const volumeOptions = ['silent', 'x-soft', 'soft', 'medium', 'loud', 'x-loud', 'delete'];
+    const pitchOptions = ['low', 'x-low', 'medium', 'high', 'x-high', 'delete'];
+    const rateOptions = ['slow', 'x-slow', 'medium', 'fast', 'x-fast', 'delete'];
+    const numberOptions = ['ordinal', 'cardinal', 'delete'];
+    const textOptions = ['sentence', 'paragraph', 'delete'];
+    const breakSpellOutOption = ['delete'];
+    const [loading, setLoading] = useState(false);
+    const [sent, setSent] = useState(false);
+
+
+
+
 
 
     const [isMenuVisible, setIsMenuVisible] = useState(false);
@@ -30,8 +72,8 @@ const TextToSpeech = () => {
     const showNavBar = selection.start !== selection.end;
     const showAppBar = selection.start == selection.end;
     //const showListenButton = selection.start !== selection.end;
-    const [selectedLanguage, setSelectedLanguage] = useState('Choose option');
-    const [selectedVoiceGender, setSelectedVoiceGender] = useState('Choose option');
+    const [selectedLanguage, setSelectedLanguage] = useState('');
+
     const [languages, setLanguages] = useState([]);
     const [inputFocused, setInputFocused] = useState(false);
     const [SSMLTags, setSSMLTags] = useState([]);
@@ -40,7 +82,12 @@ const TextToSpeech = () => {
     const [visible, setVisible] = React.useState(false);
     const openMenu = () => setVisible(true);
     const closeMenu = () => setVisible(false);
+    const genderOptions = [
 
+        { label: 'Male', value: 'male' },
+        { label: 'Female', value: 'female' }
+    ];
+    const [selectedVoiceGender, setSelectedVoiceGender] = useState('');
 
 
 
@@ -64,6 +111,7 @@ const TextToSpeech = () => {
     const [showDiscardModal, setShowDiscardModal] = useState(false);
     const [showResetModal, setShowResetModal] = useState(false);
     const [showPreviewModal, setShowPreviewModal] = useState(false);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
 
 
 
@@ -93,31 +141,72 @@ const TextToSpeech = () => {
 
 
 
+
+
+
+
+
+    const handleDropdownOpen = () => {
+        setDropdownOpen(true);
+    };
+
+    const handleDropdownClose = () => {
+        setDropdownOpen(false);
+    };
+    const handleGenderSelect = (index) => {
+        setSelectedVoiceGender(genderOptions[index].value);
+    };
+
+
     const resetCurrentChanges = () => {
         if (SSMLTags.length > 0) {
             setSSMLTags([]);
         }
         setShowDiscardModal(false);
     };
+    const handlePress = async () => {
+        try {
+            console.log('beforrrrrrrrrrrrrrrr', JSON.stringify(tabData));
+            setLoading(true);
+            const response = await fetch(`${IpAdress.IP}/GenerateSSML/UpdateTags`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({tabData}),
+            });
+            console.log('success !!!!! ')
+            const responseData = await response.json();
+            console.log('mlString!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:', responseData.mlString); // log the mlString here
+            setSent(true);
+            console.log('afterrrrrrrrrrrrrrrr', JSON.stringify(tabData));
+        } catch (error) {
+            console.log(error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    const handleLayout = event => {
-        const { width, height } = event.nativeEvent.layout;
-        // do something with width and height
-    }
+
+
+
     const resetDefaultSSML = async () => {
 
         const db = SQLite.openDatabase({ name: 'ZinkiDB', location: 'default' });
         console.log('Old DefaultSSML', defaultSSMLFromDB);
+
         // Define the default SSML value
         const newDefaultSSML = `<speak>${textFromDB} </speak>`;
 
         try {
-            const response = await fetch(`${IpAdress.IP}/GenerateSSML/ResetAll`, {
+            const response = await fetch(`${IpAdress.IP}/GenerateSSML/test`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ newDefaultSSML, selectedLanguage, selectedVoiceGender })
+                body: JSON.stringify({
+                    newDefaultSSML, selectedLanguage, selectedVoiceGender, id: 33
+                })
 
             });
             const responseData = await response.json();
@@ -130,7 +219,7 @@ const TextToSpeech = () => {
                 db.transaction(tx => {
                     tx.executeSql(
                         'UPDATE DOCS SET DefaultSSML = ?, Url = ? WHERE id = ? AND UserId = ?',
-                        [newDefaultSSML, '', 49, 33], // Replace with the actual values of id and UserId, and set the Url to an empty string
+                        [newDefaultSSML, '', 16, 33], // Replace with the actual values of id and UserId, and set the Url to an empty string
                         (tx, result) => {
                             console.log('DefaultSSML updated successfully', newDefaultSSML);
                         },
@@ -146,18 +235,12 @@ const TextToSpeech = () => {
             console.log('Error sending configs to server:', error.message);
         }
         setShowResetModal(false);
-    };
-
-
-
-    const onLanguageChange = (value) => {
-        setSelectedLanguage(value);
-    };
-
-    const onVoiceGenderChange = (value) => {
-        setSelectedVoiceGender(value);
+        console.log('new DefaultSSML', newDefaultSSML);
 
     };
+
+
+
 
     useEffect(() => {
         fetch(TTS_LANGUAGES_API_URL)
@@ -183,7 +266,7 @@ const TextToSpeech = () => {
             })
             .catch(error => console.error(error));
     }, []);
-    console.log('labellllllllllllllllllllllllllllllll', languages);
+    // console.log('labellllllllllllllllllllllllllllllll', languages);
     console.log('selected langugeeeeeeeeee', selectedLanguage);
     console.log('voice genderrrrrrrrr', selectedVoiceGender);
 
@@ -191,10 +274,7 @@ const TextToSpeech = () => {
 
 
 
-    const getLanguagesBySelectedVoiceGender = (selectedGender) => {
-        return languages.filter(language => language.gender === selectedGender || selectedGender === 'Choose option');
-    };
-    const filteredLanguages = getLanguagesBySelectedVoiceGender(selectedVoiceGender);
+
     const handleSelectionChange = (event) => {
         const { start, end } = event.nativeEvent.selection;
         if (start !== end) {
@@ -476,8 +556,8 @@ CREATE TABLE IF NOT EXISTS DOCS (
         // Execute a SELECT query on users
         db.transaction((tx) => {
             tx.executeSql(
-                'SELECT * FROM users WHERE id = ?',
-                [4],
+                'SELECT * FROM users ',
+                [13],
                 (tx, results) => {
                     const users = results.rows.raw();
                     console.log('Users:', users);
@@ -492,7 +572,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
         db.transaction((tx) => {
             tx.executeSql(
                 'SELECT * FROM DOCS WHERE id = ? AND UserId = ?',
-                [49, 33],
+                [16, 33],
                 (tx, results) => {
                     const users = results.rows.raw();
                     console.log('Docs:', users);
@@ -543,59 +623,59 @@ CREATE TABLE IF NOT EXISTS DOCS (
         });
 
         // Insert a new user into the "users" table
-
-        /* db.transaction((tx) => {
-              tx.executeSql(insertUserSql, ['Omar Jlassi', 'Omar.Jlassi@gmail.com', '92131827', 'azerty123'], (_, result) => {
-                  console.log('User inserted successfully');
-                  const lastInsertId = result.insertId;
-                  //console.log('User inserted successfully with ID ','${ lastInsertId });
-  
-                  fetch(`${IpAdress.IP}/GenerateSSML/Quota`, {
-                      method: 'POST',
-                      headers: {
-                          'Content-Type': 'application/json'
-                      },
-                      body: JSON.stringify({ userId: "789", Quota_Type: "premium", })
-                  })
-                      .then(response => {
-                          if (!response.ok) {
-                              throw new Error('Network response was not ok');
-                          }
-                          return response.text();
-                      })
-                      .then(text => {
-                          console.log('text', text); // log the raw response data
-                          try {
-                              const data = JSON.parse(text); // try to parse the response as JSON
-                              console.log(data); // handle response data from backend
-                          } catch (err) {
-                              console.error('Error parsing response:', err);
-                              // handle the error here, e.g. show an error message to the user
-                          }
-                      })
-                      .catch(error => {
-                          console.error('There was a problem with the fetch operation:', error);
-                          // handle the error here, e.g. show an error message to the user
+        /*
+                 db.transaction((tx) => {
+                      tx.executeSql(insertUserSql, ['Omar Jlassi', 'Omar.Jlassi@gmail.com', '92131827', 'azerty123'], (_, result) => {
+                          console.log('User inserted successfully');
+                          const lastInsertId = result.insertId;
+                          //console.log('User inserted successfully with ID ','${ lastInsertId });
+          
+                          fetch(`${IpAdress.IP}/GenerateSSML/Quota`, {
+                              method: 'POST',
+                              headers: {
+                                  'Content-Type': 'application/json'
+                              },
+                              body: JSON.stringify({ userId: "33", Quota_Type: "premium", })
+                          })
+                              .then(response => {
+                                  if (!response.ok) {
+                                      throw new Error('Network response was not ok');
+                                  }
+                                  return response.text();
+                              })
+                              .then(text => {
+                                  console.log('text', text); // log the raw response data
+                                  try {
+                                      const data = JSON.parse(text); // try to parse the response as JSON
+                                      console.log(data); // handle response data from backend
+                                  } catch (err) {
+                                      console.error('Error parsing response:', err);
+                                      // handle the error here, e.g. show an error message to the user
+                                  }
+                              })
+                              .catch(error => {
+                                  console.error('There was a problem with the fetch operation:', error);
+                                  // handle the error here, e.g. show an error message to the user
+                              });
+                      }, (_, error) => {
+                          console.log('Error inserting user:', error);
                       });
-              }, (_, error) => {
-                  console.log('Error inserting user:', error);
-              });
-          });
-  
-          // Insert a new docs into the "Docs" table
+                  });
+          
+                  // Insert a new docs into the "Docs" table
+        
+          
+                  db.transaction((tx) => {
+                      tx.executeSql(insertDocsSql, [' To be, or not to be, that is the question Whether tis nobler in the mind to suffer The slings and arrows of outrageous fortune, Or to take arms against a sea of troubles And by opposing end them', 'image', '<speak>To be, or not to be, that is the question Whether tis nobler in the mind to suffer The slings and arrows of outrageous fortune,Or to take arms against a sea of troubles And by opposing end them </speak>', '33', `${IpAdress.IP}/audio`], (_, result) => {
+                          console.log('User inserted successfully');
+                      }, (_, error) => {
+                          console.log('Error inserting Docs:', error);
+                      });
+                  });
+              */
 
-  
-          db.transaction((tx) => {
-              tx.executeSql(insertDocsSql, [' مرحبا بكم في زنكي 6 ', 'image', '<speak> مرحبا بكم في زنكي 6 </speak>', '33', `${IpAdress.IP}/audio`], (_, result) => {
-                  console.log('User inserted successfully');
-              }, (_, error) => {
-                  console.log('Error inserting Docs:', error);
-              });
-          });
-      */
+        console.log('SSMLTags tab:', SSMLTags);
 
-          console.log('SSMLTags tab:', SSMLTags); 
-  
 
     }, [SSMLTags, defaultSSMLFromDB, textFromDB, urlFromDB]);
 
@@ -612,16 +692,16 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ DefaultSSML: defaultSSMLFromDB, SSMLTags, selectedLanguage, selectedVoiceGender , id: 123456 })
+                body: JSON.stringify({ DefaultSSML: defaultSSMLFromDB, SSMLTags, selectedLanguage, selectedVoiceGender, id: 33 })
 
-            }); console.log('selected langugeeeeeeeeee', selectedLanguage);
+            }); console.log('selected languge', selectedLanguage);
             console.log('voice genderrrrrrrrr', selectedVoiceGender);
 
             const responseData = await response.json();
             // Do something with the response data
             console.log('responseData111', responseData);
 
-            if (response.ok && responseData.message=='OK') {
+            if (response.ok && responseData.message == 'OK') {//Quota
                 console.log('Configs sent to server');
                 setUrl(responseData.url); // Set the url state with the responseData.url value
 
@@ -631,7 +711,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 db.transaction((tx) => {
                     tx.executeSql(
                         'UPDATE DOCS SET DefaultSSMl = ? , Url = ? WHERE id = ? AND UserId = ?',
-                        [responseData.SSML, responseData.url, 49, 33], // Replace with the actual values of id and UserId
+                        [responseData.SSML, responseData.url, 16, 33], // Replace with the actual values of id and UserId
                         (tx, result) => {
                             console.log('DefaultSSML updated successfully');
                         },
@@ -667,6 +747,195 @@ CREATE TABLE IF NOT EXISTS DOCS (
     };
 
 
+    const cards = tabData.map((item, index) => {
+        const { text, tag } = item;
+        const pickers = tag.map((t, i) => {
+
+            const options = t.value ? t.value.split("=")[1].replace(/'/g, "") : "";
+            const prompt = t.value ? t.value.split("=")[0] : "";
+            const [selectedValue, setSelectedValue] = useState(options);
+            const [selectedOption, setSelectedOption] = useState("");
+            const [prevSelectedValue, setPrevSelectedValue] = useState("");
+            const name = t.name;
+
+
+            const handleValueChange = (value) => {
+                setPrevSelectedValue(selectedValue);
+                if (value === "delete") {
+                    Alert.alert(
+                        "Confirm Delete",
+                        "Are you sure you want to delete this configuration?",
+                        [
+                            {
+                                text: "Cancel",
+                                style: "cancel",
+                                onPress: () => setSelectedValue(prevSelectedValue),
+                            },
+                            {
+                                text: "Delete",
+                                style: "destructive",
+                                onPress: () => {
+                                    const updatedTabData = [...tabData];
+                                    updatedTabData[index].tag[i].value = "";
+                                    updatedTabData[index].tag[i].name = "";
+                                    setTabData(updatedTabData);
+                                    setSelectedValue("");
+                                    setSelectedOption("");
+                                },
+                            },
+                        ]
+                    );
+                } else {
+                    const updatedTabData = [...tabData];
+                    const currentValue = updatedTabData[index].tag[i].value;
+                    const parts = currentValue.split("=");
+                    const newValue = `${parts[0]}='${value}'`;
+                    updatedTabData[index].tag[i].value = newValue;
+                    if (value === "sentence" || value === "paragraph") {
+                        updatedTabData[index].tag[i].name = value.charAt(0);
+                    }
+                    setTabData(updatedTabData);
+
+                }
+
+
+
+
+
+
+                setSelectedValue(value);
+                setSelectedOption(dropdownOptions[index]);
+                console.log("Selected Option:", value);
+            };
+
+
+
+            let dropdownOptions = [];
+
+            switch (prompt) {
+                case 'volume':
+                    dropdownOptions = [options, ...volumeOptions.filter((opt) => opt !== options)];
+                    break;
+                case 'pitch':
+                    dropdownOptions = [options, ...pitchOptions.filter((opt) => opt !== options)];
+                    break;
+                case 'rate':
+                    dropdownOptions = [options, ...rateOptions.filter((opt) => opt !== options)];
+                    break;
+                default:
+                    dropdownOptions = [options];
+                    break;
+            }
+
+            switch (options) {
+                case 'ordinal':
+                    dropdownOptions = [options, ...numberOptions.filter((opt) => opt !== options)];
+                    break;
+                case 'cardinal':
+                    dropdownOptions = [options, ...numberOptions.filter((opt) => opt !== options)];
+                    break;
+                case 'verbatim':
+                    dropdownOptions = [options, ...breakSpellOutOption.filter((opt) => opt !== options)];
+                    break;
+                default:
+                    // do nothing
+                    break;
+            }
+            switch (name) {
+                case 'p':
+                    dropdownOptions = [options, ...textOptions.filter((opt) => opt !== options)];
+                    break;
+                case 's':
+                    dropdownOptions = [options, ...textOptions.filter((opt) => opt !== options)];
+                    break;
+                default:
+                    // do nothing
+                    break;
+            }
+
+            console.log(JSON.stringify(tabData));
+
+            return (
+                <View key={`${index}-${i}`} style={styles.verticalWrapper}>
+                    <Text style={styles.strongText}>{
+
+                        prompt ? (prompt === "interpret-as" && t.value.split("=")[1].replace(/'/g, "") === "verbatim"
+                            ? 'spell-out'
+                            : prompt === "say-as"
+                                ? t.value.split("=")[1].replace(/'/g, "")
+                                : prompt === 'rate'
+                                    ? 'speed'
+                                    : prompt)
+                            : (name === "s"
+                                ? "sentence"
+                                : name === "p"
+                                    ? "paragraph"
+                                    : ""
+                            )}
+                    </Text>
+                    {prompt !== '' && (
+                        <View style={styles.pickerWrapper}>
+                            <Picker
+                                dropdownIconRippleColor="#CCD8EE"
+                                dropdownIconColor="gray"
+                                mode="dropdown"
+                                style={[styles.updateDropdown, { color: selectedOption === "delete" ? "#E57373" : selectedValue === options ? "#6CA4FC" : "#000", },]}
+                                selectedValue={selectedValue}
+                                onValueChange={handleValueChange}>
+                                {dropdownOptions.map((option, index) => (
+                                    <Picker.Item
+                                        key={index}
+                                        label={option}
+                                        value={option}
+                                        style={{ color: option === "delete" ? "#E57373" : "#000" }}
+                                    />
+                                ))}
+                            </Picker>
+                        </View>
+                    )}
+                </View>
+            );
+        });
+
+        return (
+            <>
+                <View style={styles.cardContainer} key={index}>
+                    <Card style={styles.card} elevation={4}>
+                        <Card.Content>
+                            <Text style={styles.content}>{text}</Text>
+                            <Divider style={{ backgroundColor: "#CCD8EE" }} />
+                            <ScrollView horizontal={true} showsHorizontalScrollIndicator={true}>
+
+                                <View style={styles.horizontalWrapper}>
+
+                                    {pickers.map((picker, i) => (
+                                        <React.Fragment key={i}>
+                                            {picker}
+                                            {i !== pickers.length - 1 && <View style={styles.line} />}
+                                        </React.Fragment>
+                                    ))}
+
+                                </View>
+
+                            </ScrollView>
+                        </Card.Content>
+                    </Card>
+                </View>
+            </>
+        );
+    });
+
+
+
+
+
+
+
+
+
+
+
+
 
     const renderSubMenu = (menuIndex) => {
         if (activeMenu === 0) {
@@ -688,7 +957,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => handleMenuClick(0)}>
                             <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                                <Icon name="chevron-up-outline" size={24} color="#2B3270" />
+                                <Icon name="chevron-up-outline" size={20} color="#2B3270" />
                             </View>
                         </TouchableOpacity>
                     </View>
@@ -715,7 +984,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                             <Icon name="speedometer-outline" size={24} color="#2B3270" />
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.subMenuItem} onPress={() => { setModalPitchVisible(true); setActiveMenu(-1); }}>
-                            <Text style={styles.subMenuItemText}>Tone</Text>
+                            <Text style={styles.subMenuItemText}>Pitch</Text>
                             <Icon name="stats-chart-outline" size={24} color="#2B3270" />
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.subMenuItem} onPress={() => { setModalEmphasisVisible(true); setActiveMenu(-1); }}>
@@ -724,7 +993,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => handleMenuClick(1)}>
                             <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                                <Icon name="chevron-up-outline" size={24} color="#2B3270" />
+                                <Icon name="chevron-up-outline" size={20} color="#2B3270" />
                             </View>
                         </TouchableOpacity>
                     </View>
@@ -760,15 +1029,15 @@ CREATE TABLE IF NOT EXISTS DOCS (
                             </TouchableOpacity>*/}
                         <TouchableOpacity style={styles.subMenuItem} onPress={() => { setModalCardinalVisible(true); setActiveMenu(-1); }}>
                             <Text style={styles.subMenuItemText}>Cardinal number</Text>
-                            <Icon name="stats-chart-outline" size={24} color="#2B3270" />
+                            <Octicons name="number" size={20} color="#2B3270" />
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.subMenuItem} onPress={() => { setModalOrdinalVisible(true); setActiveMenu(-1); }}>
                             <Text style={styles.subMenuItemText}>Ordinal number</Text>
-                            <Icon name="build-outline" size={24} color="#2B3270" />
+                            <Octicons name="number" size={20} color="#2B3270" />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => handleMenuClick(2)}>
                             <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                                <Icon name="chevron-up-outline" size={24} color="#2B3270" />
+                                <Icon name="chevron-up-outline" size={20} color="#2B3270" />
                             </View>
                         </TouchableOpacity>
                     </View>
@@ -790,42 +1059,60 @@ CREATE TABLE IF NOT EXISTS DOCS (
 
                     <View style={showAppBar ? styles.dropsContainer : styles.hidden}>
                         <View style={styles.pickerContainer}>
-                            <View style={styles.dropdownContainer}>
+                            <View style={[styles.dropdownContainer, { borderRadius: 15 }]}>
 
 
-                                <Picker
-                                    dropdownIconRippleColor="#6CA4FC"
-                                    dropdownIconColor="#2B3270"
-                                    mode='dropdown'
-                                    placeholder={{ label: 'Language', value: null }}
+                                <ModalDropdown
+                                    options={languages.map((language) => language.label)}
+                                    defaultIndex={0}
+                                    onSelect={(index, value) => setSelectedLanguage(languages[index].value)}
+                                    defaultValue={selectedLanguage.label}
                                     style={styles.dropdown}
-                                    selectedValue={selectedLanguage}
-                                    onValueChange={onLanguageChange}
-                                >
+                                    textStyle={styles.dropdownText}
+                                    dropdownStyle={[styles.dropdownContainer, { marginLeft: -10, width: '38.6%', height: 300, marginTop: 2, }]}
+                                    dropdownTextStyle={styles.dropdownOptionText}
+                                    dropdownTextHighlightStyle={styles.dropdownOptionHighlightText}
+                                    onDropdownWillShow={handleDropdownOpen}
+                                    onDropdownWillHide={handleDropdownClose}
+                                    showsVerticalScrollIndicator={true}
+                                    showsHorizontalScrollIndicator={false}
+                                    separator={null}
 
-                                    <Picker.Item label="Choose option" value="Choose option" style={{ fontWeight: 'bold', color: 'gray' }} />
-                                    {languages.map((language) => (
-                                        <Picker.Item key={language.value} label={language.label} value={language.value} numberOfLines={1} />
-                                    ))}
 
-                                </Picker>
+                                />
 
+
+                                <MaterialIcon name="arrow-drop-down" size={24} color="#2B3270" style={{ alignItems: 'center', marginTop: 16, position: 'absolute', right: 5, zIndex: 50, }} onPress={handleDropdownOpen} />
                             </View>
                         </View>
                         <View style={styles.pickerContainer}>
-                            <View style={styles.dropdownContainer}>
-                                <Picker
+                            <View style={[styles.dropdownContainer, { borderRadius: 15 }]}>
+
+                                <ModalDropdown
+                                    options={genderOptions.map((gender) => gender.label)}
+                                    defaultIndex={0}
+                                    onSelect={handleGenderSelect}
+                                    defaultValue={'Pleas...'}
+                                    style={styles.dropdown}
+                                    textStyle={styles.dropdownText}
+                                    dropdownStyle={[styles.dropdownContainer, { marginLeft: -10, width: '38.6%', marginTop: 2, height: 110, }]}
+                                    dropdownTextStyle={styles.dropdownOptionText}
+                                    showsVerticalScrollIndicator={true}
+                                    showsHorizontalScrollIndicator={false}
                                     dropdownIconRippleColor="#6CA4FC"
                                     dropdownIconColor="#2B3270"
-                                    mode='dropdown'
-                                    prompt="Voice gender"
-                                    style={styles.dropdown}
-                                    selectedValue={selectedVoiceGender}
-                                    onValueChange={onVoiceGenderChange}>
-                                    <Picker.Item label="Choose option" value="Choose option" style={{ fontWeight: 'bold', color: 'gray' }} />
-                                    <Picker.Item label="Male" value="male" />
-                                    <Picker.Item label="Female" value="female" />
-                                </Picker>
+                                    renderRow={(option) =>
+                                        option === 'Choose option' ? (
+                                            <Text style={[styles.dropdownOptionText, { color: 'gray', fontSize: 14 }]}>
+                                                {option}
+                                            </Text>
+                                        ) : (
+                                            <Text style={styles.dropdownOptionText}>{option}</Text>
+                                        )
+                                    }
+                                />
+                                <MaterialIcon name="arrow-drop-down" size={24} color="#2B3270" style={{ alignItems: 'center', marginTop: 16, position: 'absolute', right: 5, zIndex: 50, }} onPress={handleDropdownOpen} />
+
                             </View>
                         </View>
 
@@ -855,11 +1142,27 @@ CREATE TABLE IF NOT EXISTS DOCS (
                                     }} disabled={SSMLTags.length === 0} />
                                 </View>
                                 <View style={[styles.menuItemContainer, { height: 47 }]}>
-                                    <Icon name="refresh" size={24} color={(selectedLanguage === 'Choose option' || selectedVoiceGender === 'Choose option') ? "#A9A9A9" : "#6CA4FC"} />
+                                    <Icon name="refresh" size={24} color="#6CA4FC" />
                                     <Menu.Item title="Reset" onPress={() => {
-                                        setShowResetModal(true);
-                                        closeMenu();
-                                    }} disabled={selectedLanguage === 'Choose option' || selectedVoiceGender === 'Choose option'} />
+                                        if (selectedVoiceGender === '' || selectedLanguage === '') {
+                                            Alert.alert(
+                                                'Warning',
+                                                'You must choose a language and voice gender first to be able to listen to the new text.',
+                                                [{ text: 'OK', onPress: () => console.log('OK Pressed') }],
+                                                {
+                                                    cancelable: false,
+                                                    titleStyle: { color: 'red', fontSize: 24, fontWeight: 'bold' },
+                                                    messageStyle: { color: 'black', fontSize: 18 },
+                                                    containerStyle: { backgroundColor: 'white', borderWidth: 2, borderColor: 'red', borderRadius: 10 },
+                                                    buttonStyle: { backgroundColor: 'red' },
+                                                    buttonTextStyle: { color: 'red' }
+                                                }
+                                            );
+                                        } else {
+                                            setShowResetModal(true);
+                                            closeMenu();
+                                        }
+                                    }} />
                                 </View>
 
                                 <Divider />
@@ -949,7 +1252,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                             <View style={{ width: 200, justifyContent: 'center', marginTop: 20, marginLeft: 'auto', marginRight: 'auto' }}>
                                 <Button
                                     mode="outlined"
-                                    disabled={SSMLTags.length === 0 || selectedLanguage === 'Choose option' || selectedVoiceGender === 'Choose option'}
+                                    disabled={selectedVoiceGender === '' || selectedLanguage === ''}
                                     onPress={applyChanges}
                                     style={{
                                         borderRadius: 20,
@@ -1037,7 +1340,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                                     <TouchableOpacity onPress={() => setModalPitchVisible(false)}>
                                         <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
                                     </TouchableOpacity>
-                                    <Text style={styles.modalTitle}>Set Tone Option</Text>
+                                    <Text style={styles.modalTitle}>Set Pitch Option</Text>
 
                                 </View>
 
@@ -1519,89 +1822,44 @@ CREATE TABLE IF NOT EXISTS DOCS (
                                     onPress={() => setShowPreviewModal(false)}
                                 />
 
-                                <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                                    {[1, 2, 3, 4, 5].map((card, index) => (
-                                        <View key={index} style={styles.cardContainer}>
-                                            <Card style={styles.card} elevation={4}>
-                                                <Card.Title
-                                                    title="Emphasis"
-                                                    titleStyle={styles.title}
-                                                    right={(props) => (
-                                                        <IconButton
-                                                            mode="contained-tonal"
-                                                            icon="trash-can-outline"
-
-                                                            iconColor="#FFF"
-                                                            animated="true"
-                                                            size={24}
-                                                            //  onPress={handleDelete}
-                                                            style={{
-                                                                backgroundColor: "#E57373",
-                                                                borderRadius: 50,
-                                                                padding: 8,
-                                                                shadowColor: '#000',
-                                                                shadowOffset: { width: 0, height: 2 },
-                                                                shadowOpacity: 0.8,
-                                                                shadowRadius: 2,
-                                                                elevation: 5,
-                                                                marginLeft: 8,
-                                                            }}
-                                                        />
-                                                    )}
-                                                />
-                                                <Card.Content>
-                                                    <Text style={styles.content}>
-                                                        Card content new content new configs ard content new content new configsard content new content new configsard content new content new configs
-                                                    </Text>
-                                                    <Divider />
-                                                </Card.Content>
-                                                <Card.Actions style={styles.actions}>
-                                                    <View style={styles.updatePickerContainer}>
-                                                        <Text style={styles.strongText}>Strong</Text>
-                                                        <View style={styles.pickerWrapper}>
-                                                            <Picker
-                                                                dropdownIconRippleColor="#6CA4FC"
-                                                                dropdownIconColor="#2B3270"
-                                                                mode="dropdown"
-                                                                prompt="Voice gender"
-                                                               
-                                                                style={styles.updateDropdown}
-
-                                                                selectedValue={selectedVoiceGender}
-                                                                onValueChange={onVoiceGenderChange}
-                                                            >
-                                                                <Picker.Item
-                                                                    label="Update option"
-                                                                    value="Update option"
-                                                                    style={{ fontWeight: 'bold', color: 'gray' }}
-                                                                />
-                                                                <Picker.Item label="Medium" value="Medium" />
-                                                                <Picker.Item label="Low" value="Low" />
-                                                            </Picker>
-                                                        </View>
-                                                    </View>
-                                                </Card.Actions>
-                                            </Card>
+                                {cards.length > 0 ? (
+                                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                                        {cards}
+                                        <View style={{ width: 200, justifyContent: 'center', marginTop: 20, marginLeft: 'auto', marginRight: 'auto' }}>
+                                            <Button
+                                                mode="outlined"
+                                                loading={loading}
+                                                disabled={loading}
+                                                onPress={handlePress}
+                                                style={{
+                                                    borderRadius: 20,
+                                                    marginVertical: 8,
+                                                    borderColor: "#6CA4FC",
+                                                }}
+                                                contentStyle={{ height: 40 ,}}
+                                                labelStyle={{ fontSize: 16 }}
+                                                textColor="#6CA4FC"
+                                            >
+                                                {loading ? (
+                                                    <Text style={{ color: 'gray', marginRight: 10 }}>Processing</Text>
+                                                ) : sent ? (
+                                                     
+                                                        <Text> <Icon name="checkmark-done-outline" size={16} color="#fff" />Done</Text>
+                                                ) : (
+                                                    <Text>Apply change</Text>
+                                                )}
+                                            </Button>
 
 
-                                            {/*<View style={styles.card}>
-                                            <ScrollView style={{ flex: 1 }}>
-                                                <Text style={styles.cardText}>
-                                                    Google Cloud Text-to-Speech
-                                                </Text>
-                                            </ScrollView>
-                                            <TouchableOpacity style={styles.deleteButton}>
-                                                <Icon
-                                                    name="trash-outline"
-                                                    size={24}
-                                                    color="#F5B7B1"
-                                                    style={styles.deleteButtonText}
-                                                />
-                                            </TouchableOpacity>
-                                        </View>*/}
                                         </View>
-                                    ))}
-                                </ScrollView>
+
+                                    </ScrollView>
+                                ) : (
+                                    <View style={styles.noDataContainer}>
+                                        <Image source={noDataImage} style={styles.noDataImage} />
+                                    </View>
+                                )}
+
                             </View>
                         </Provider>
                     </Modal>
@@ -1910,21 +2168,8 @@ const styles = StyleSheet.create({
 
 
     },
-    dropdownContainer: {
-        height: 50,
-        backgroundColor: '#fff',
-        borderRadius: 15,
-        borderWidth: 1,
-        borderColor: '#fff',
-        paddingHorizontal: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
 
-    },
-    dropdown: {
-        width: '130%',
 
-    },
     ellipsisMenuItem: {
         marginLeft: 10,
     },
@@ -2000,12 +2245,7 @@ const styles = StyleSheet.create({
     cardTextContainer: {
         flexGrow: 1,
     },
-    card: {
-        margin: 16,
-        borderRadius: 16,
-        backgroundColor: '#fff',
-        width: 290,
-    },
+
 
     title: {
         fontSize: 16,
@@ -2016,13 +2256,11 @@ const styles = StyleSheet.create({
     },
     content: {
         fontSize: 16,
-        color:'gray',
+        color: '#000',
         lineHeight: 24,
         marginVertical: 16,
     },
-    actions: {
-        justifyContent: 'flex-end',
-    },
+
     menuButton: {
         borderRadius: 16,
     },
@@ -2044,35 +2282,127 @@ const styles = StyleSheet.create({
     },
     updatePickerContainer: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
+        overflow: 'scroll',
+    },
+    scrollView: {
+        flex: 1,
+        backgroundColor: '#CCD8EE',
+        borderRadius: 5,
+    },
+    cardContainer: {
+        margin: 10,
+    },
+    card: {
+        borderRadius: 10,
+        backgroundColor: '#FFFFFF',
+    },
+
+    actions: {
+        flexDirection: 'column',
+        alignItems: 'stretch',
+    },
+
+    horizontalWrapper: {
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
     },
+    verticalWrapper: {
+        alignItems: 'flex-start',
+        marginBottom: 10,
+    },
     strongText: {
-        fontWeight: 'bold',
-        fontSize: 16,
-        color:"#2B3270"
+        fontSize: 14,
+        fontWeight: 'normal',
+        color: 'gray',
+        marginRight: 10,
     },
     pickerWrapper: {
-        flex: 1,
-        marginLeft: 16,
-        backgroundColor: '#ccc',
-        borderRadius:30,
-        borderWidth: 2,
-        borderColor: '#fff',
+        //borderColor: '#000',
+        //borderWidth: 1,
+        borderRadius: 5,
+        alignItems: 'flex-start',
+
+
+
     },
     updateDropdown: {
-        
-        backgroundColor: '#fff',
+        height: 0,
+        width: 140,
+        color: '#000',
+        fontWeight: 'bold',
+        marginTop: -15,
+        marginLeft: -15,
+
+
+
+    },
+    line: {
+        height: '100%',
+        width: 1,
+        backgroundColor: '#CCD8EE',
+        marginTop: 10,
+        marginRight: 10,
+    },
+    optionsText: {
+        fontWeight: 'bold',
+        color: '#000',
+        fontSize: 18,
+        alignItems: 'flex-start',
+    },
+    divider: {
+        backgroundColor: '#CCC',
+
+        width: 1,
+    },
+
+    dropdown: {
+        width: '100%',
+        height: 50,
         paddingHorizontal: 10,
+        justifyContent: 'center',
+        borderRadius: 15,
+
+    },
+    dropdownText: {
+        fontSize: 16,
+        color: '#333',
+        textAlign: 'left',
+
+
+    },
+
+    dropdownOptionText: {
+        fontSize: 16,
+        color: '#333',
+        marginLeft: 15,
+        paddingHorizontal: 0,
+        paddingVertical: 10,
+        marginTop: 5,
+    },
+    dropdownOptionHighlightText: {
+        //  color: '#fff',
+        // backgroundColor: '#6CA4FC',
+    },
+    dropdownContainer: {
+        maxHeight: 300,
+        backgroundColor: '#fff',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.8,
+        shadowRadius: 2,
+        zIndex: 40,
+
+    },
+    noDataContainer: {
+
         justifyContent: 'center',
         alignItems: 'center',
     },
+    noDataImage: {
 
-
-
-
-
-
+    },
 
 });
 
