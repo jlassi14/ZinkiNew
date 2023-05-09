@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, Modal, SafeAreaView, Image, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View,  TouchableOpacity, Text, StyleSheet, Modal, TouchableWithoutFeedback, SafeAreaView, Image, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 import Octicons from 'react-native-vector-icons/Octicons';
-import noDataImage from '../assets/noData.svg';
+//import noDataImage from '../assets/noData.svg';
 
-import { TextInput, Button, Menu, Divider, Provider, Card, IconButton } from 'react-native-paper';
+import { TextInput, Button, Menu, Divider, Provider, Card, IconButton, } from 'react-native-paper';
 import Slider from '@react-native-community/slider';
 import Soundplayer from './Soundplayer';
 import { Picker } from '@react-native-picker/picker';
@@ -26,40 +26,21 @@ const TextToSpeech = () => {
     const [url, setUrl] = useState(null);
     const TTS_API_KEY = 'AIzaSyBpKakDqYNOO4jegJsZ5X5Md-0NBLezJU0';
     const TTS_LANGUAGES_API_URL = `https://texttospeech.googleapis.com/v1beta1/voices?key=${TTS_API_KEY}`;
-    const [tabData, setTabData] = useState([
-        {
-            "text": "hello",
-            "tag": [
-                { "name": "1", "value": "speed='x-low'" },
-                { "name": "2", "value": "speed='x-low'" }
-            ]
-        },
-        {
-            "text": "ldwor ",
-            "tag": [
-                { "name": "2", "value": "pitch='x-high'" },
-                { "name": "tt", "value": "pitch='x-high'" }
-            ]
-        },
-        {
-            "text": "nice",
-            "tag": [{ "name": "sara", "value": "prenom='5s'" }]
-        },
-        {
-            "text": "world",
-            "tag": [{ "name": "sara", "value": "prenom='5s'" }]
-        },
-        // Add empty tag arrays for any new items you add to `tabData`
-    ]);
-    const volumeOptions = ['silent', 'x-soft', 'soft', 'medium', 'loud', 'x-loud', 'delete'];
-    const pitchOptions = ['low', 'x-low', 'medium', 'high', 'x-high', 'delete'];
-    const rateOptions = ['slow', 'x-slow', 'medium', 'fast', 'x-fast', 'delete'];
+    const [tabData, setTabData] = useState([]);
+    const [tab, setTab] = useState([]);
+    const volumeOptions = ['silent', 'x-soft', 'soft', 'medium', 'loud', 'x-loud', 'default', 'delete'];
+    const pitchOptions = ['low', 'x-low', 'medium', 'high', 'x-high', 'default', 'delete'];
+    const rateOptions = ['slow', 'x-slow', 'medium', 'fast', 'x-fast', 'default', 'delete'];
+    const emphasisOptions = ['none', 'reduced', 'moderate', 'strong', 'default', 'delete'];
     const numberOptions = ['ordinal', 'cardinal', 'delete'];
     const textOptions = ['sentence', 'paragraph', 'delete'];
     const breakSpellOutOption = ['delete'];
     const [loading, setLoading] = useState(false);
     const [sent, setSent] = useState(false);
-
+    const [reset, setReset] = useState(false);
+    const db = SQLite.openDatabase({ name: 'ZinkiDB', location: 'default' });
+    const inputRef = useRef(null);
+    const [aliasValue, setAliasValue] = useState('');
 
 
 
@@ -143,8 +124,88 @@ const TextToSpeech = () => {
 
 
 
+    const previewChanges = async () => {
+        console.log('Default SSML:', defaultSSMLFromDB);
+
+        try {
+            const response = await fetch(`${IpAdress.IP}/GenerateSSML/DisplayTags`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    DefaultSSML: defaultSSMLFromDB,
+                    id: 33,
+                }),
+            });
+            const responseData = await response.json();
+            console.log('responseData when preview changes:', responseData);
+
+            if (response.ok) {
+                console.log('new result 1111111111111 ', JSON.stringify(responseData.newresult1));
+                setTabData(responseData.newresult1)
+
+            }
+
+            else {
+                console.log('Error sending preview changes to server');
+            }
+        } catch (error) {
+            console.log('Error sending preview changes to server:', error.message);
+        }
+    };
 
 
+
+    const handlePress = async () => {
+        try {
+            console.log('beforrrrrrrrrrrrrrrr', JSON.stringify(tabData));
+            setLoading(true);
+            const response = await fetch(`${IpAdress.IP}/GenerateSSML/UpdateTags`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ tabData, selectedLanguage, selectedVoiceGender, id: 33, DocId: 16 }),
+            });
+            const responseData = await response.json();
+            if (response.ok) {
+                console.log('success !!!!! ')
+
+                console.log('mlString!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:', responseData.mlString); // log the mlString here
+                db.transaction((tx) => {
+                    tx.executeSql(
+                        'UPDATE DOCS SET DefaultSSMl = ? WHERE id = ? AND UserId = ?',
+                        [responseData.mlString, 16, 33], // Replace with the actual values of id and UserId
+                        (tx, result) => {
+                            console.log('DefaultSSML updated successfully');
+                            setDefaultSSMLFromDB(responseData.mlString);
+                            setShowPreviewModal(false);
+                            setSent(false);
+                            setTabData([]);
+                        },
+                        (error) => {
+                            console.log('Error updating DefaultSSML:', error);
+                        }
+                    );
+                });
+
+
+                setSent(true);
+                console.log('sennnt inside', sent);
+                console.log('afterrrrrrrrrrrrrrrr', JSON.stringify(tabData));
+            } else {
+                console.log('Error sending configs to server');
+            }
+        } catch (error) {
+            console.log(error);
+        } finally {
+            setLoading(false);
+
+        }
+    };
+
+    console.log('sennnt outside', sent);
 
     const handleDropdownOpen = () => {
         setDropdownOpen(true);
@@ -164,28 +225,8 @@ const TextToSpeech = () => {
         }
         setShowDiscardModal(false);
     };
-    const handlePress = async () => {
-        try {
-            console.log('beforrrrrrrrrrrrrrrr', JSON.stringify(tabData));
-            setLoading(true);
-            const response = await fetch(`${IpAdress.IP}/GenerateSSML/UpdateTags`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({tabData}),
-            });
-            console.log('success !!!!! ')
-            const responseData = await response.json();
-            console.log('mlString!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!:', responseData.mlString); // log the mlString here
-            setSent(true);
-            console.log('afterrrrrrrrrrrrrrrr', JSON.stringify(tabData));
-        } catch (error) {
-            console.log(error);
-        } finally {
-            setLoading(false);
-        }
-    };
+
+
 
 
 
@@ -205,7 +246,7 @@ const TextToSpeech = () => {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    newDefaultSSML, selectedLanguage, selectedVoiceGender, id: 33
+                    DefaultSSML: newDefaultSSML, SSMLTags, selectedLanguage, selectedVoiceGender, id: 33
                 })
 
             });
@@ -222,6 +263,7 @@ const TextToSpeech = () => {
                         [newDefaultSSML, '', 16, 33], // Replace with the actual values of id and UserId, and set the Url to an empty string
                         (tx, result) => {
                             console.log('DefaultSSML updated successfully', newDefaultSSML);
+                            setDefaultSSMLFromDB(newDefaultSSML);
                         },
                         error => {
                             console.log('Error updating DefaultSSML:', error);
@@ -276,6 +318,7 @@ const TextToSpeech = () => {
 
 
     const handleSelectionChange = (event) => {
+
         const { start, end } = event.nativeEvent.selection;
         if (start !== end) {
             setLastSelection({ start, end });
@@ -438,9 +481,6 @@ const TextToSpeech = () => {
         setModalAbbVisible(false);
 
     };
-
-
-
     const onRateSetAsDefault = useCallback(() => {
         const updatedRateInfo = {
             ...rateInfo, StartPos: lastSelection.start, EndPos: lastSelection.end, value: `rate= 'default'`
@@ -580,7 +620,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                     const Text = results.rows.raw()[0]?.Text ?? "";
                     const Url = results.rows.raw()[0]?.Url ?? "";
 
-                    setDefaultSSMLFromDB(defaultSSML);
+                    setDefaultSSMLFromDB(defaultSSML);//set the state defaultssmlfromdb to the default ssml in database
                     settextFromDB(Text);
                     console.log('=================defaultSSMLFromDB===================');
                     console.log(defaultSSMLFromDB);
@@ -677,22 +717,33 @@ CREATE TABLE IF NOT EXISTS DOCS (
         console.log('SSMLTags tab:', SSMLTags);
 
 
-    }, [SSMLTags, defaultSSMLFromDB, textFromDB, urlFromDB]);
+    }, [SSMLTags, defaultSSMLFromDB, setReset, textFromDB, urlFromDB]);
 
     useEffect(() => {
         console.log('input  vaalll:', inputValue);
     }, [inputValue]);
 
 
+
+
+
+
+
+
+
+
+
     const applyChanges = async () => {
         console.log('texttttttt', lastSelection.selectedText)
+
+
         try {
             const response = await fetch(`${IpAdress.IP}/GenerateSSML/test`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ DefaultSSML: defaultSSMLFromDB, SSMLTags, selectedLanguage, selectedVoiceGender, id: 33 })
+                body: JSON.stringify({ DefaultSSML: defaultSSMLFromDB, SSMLTags, selectedLanguage, selectedVoiceGender, id: 33, DocId: 16 })
 
             }); console.log('selected languge', selectedLanguage);
             console.log('voice genderrrrrrrrr', selectedVoiceGender);
@@ -701,11 +752,11 @@ CREATE TABLE IF NOT EXISTS DOCS (
             // Do something with the response data
             console.log('responseData111', responseData);
 
-            if (response.ok && responseData.message == 'OK') {//Quota
+            if (response.ok && responseData.message == 'OK!!!') {//Quota
                 console.log('Configs sent to server');
                 setUrl(responseData.url); // Set the url state with the responseData.url value
-
-
+                console.log('responseData in if (response.ok && responseData.message==OK!!!)', responseData);
+                console.log('SSMLTags in if ', SSMLTags);
                 // Update the DefaultSSML in the database with the new value
                 const db = SQLite.openDatabase({ name: 'ZinkiDB', location: 'default' });
                 db.transaction((tx) => {
@@ -714,6 +765,9 @@ CREATE TABLE IF NOT EXISTS DOCS (
                         [responseData.SSML, responseData.url, 16, 33], // Replace with the actual values of id and UserId
                         (tx, result) => {
                             console.log('DefaultSSML updated successfully');
+                            setDefaultSSMLFromDB(responseData.SSML);
+
+
                         },
                         (error) => {
                             console.log('Error updating DefaultSSML:', error);
@@ -722,8 +776,37 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 });
 
                 setSSMLTags([]);
-            } else {
+            }
+            else if (responseData.message === 'not ok') {
+
                 console.log('Error sending configs to server');
+                console.log('================= Error Message ===================');
+                console.log('================= Error Message ===================');
+
+                console.log('this is an invalid config please reconfig your voice and make sure that you dont have 2 confige inside each other');
+
+                console.log('================= Error Message ===================');
+                console.log('================= Error Message ===================');
+
+                console.log('responseData in else section', responseData);
+
+                setSSMLTags([]); console.log('SSMLTags in else section ', SSMLTags);
+                console.log('SSMLTags in else section after empty the array ', SSMLTags);
+
+            }
+
+
+
+            else {
+
+                console.log('Error sending configs to server');
+                Alert.alert(
+                    'Warning',
+                    responseData.message,
+                    [{ text: 'OK' }],
+                    { cancelable: false, }
+                );
+
             }
         } catch (error) {
             console.log('Error sending configs to server:', error.message);
@@ -737,6 +820,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
 
     console.log(' last selection end :', lastSelection.end);
     console.log(' last selection start :', lastSelection.start);
+    console.log(' the default ssml updated in applychange and rest allllllll !!!!  :', defaultSSMLFromDB);
 
     const handleMenuClick = (menuIndex) => {
         if (activeMenu === menuIndex) {
@@ -747,20 +831,36 @@ CREATE TABLE IF NOT EXISTS DOCS (
     };
 
 
+
+
+
+
+
+
+
+
+
     const cards = tabData.map((item, index) => {
+        //return true;
+
         const { text, tag } = item;
         const pickers = tag.map((t, i) => {
+            let name = t.name.trim();
+            let options = name === "p" ? "paragraph" : (name === "s" ? "sentence" : (t.value ? t.value.split("=")[1].replace(/'/g, "").trim() : ""));
+            const prompt = t.value ? t.value.split("=")[0].trim() : "";
+            const updatedTabData = [...tabData];
 
-            const options = t.value ? t.value.split("=")[1].replace(/'/g, "") : "";
-            const prompt = t.value ? t.value.split("=")[0] : "";
-            const [selectedValue, setSelectedValue] = useState(options);
-            const [selectedOption, setSelectedOption] = useState("");
-            const [prevSelectedValue, setPrevSelectedValue] = useState("");
-            const name = t.name;
+            let selectedValue = options;
+            let selectedOption = "";
+            let prevSelectedValue = "";
 
+            console.log('optionsssssssssssssssss', options)
+            console.log('ttttttt', t)
 
             const handleValueChange = (value) => {
-                setPrevSelectedValue(selectedValue);
+                prevSelectedValue = selectedValue;
+
+
                 if (value === "delete") {
                     Alert.alert(
                         "Confirm Delete",
@@ -769,18 +869,18 @@ CREATE TABLE IF NOT EXISTS DOCS (
                             {
                                 text: "Cancel",
                                 style: "cancel",
-                                onPress: () => setSelectedValue(prevSelectedValue),
+                                onPress: () => { selectedValue = prevSelectedValue },
                             },
                             {
                                 text: "Delete",
                                 style: "destructive",
                                 onPress: () => {
-                                    const updatedTabData = [...tabData];
+
                                     updatedTabData[index].tag[i].value = "";
                                     updatedTabData[index].tag[i].name = "";
                                     setTabData(updatedTabData);
-                                    setSelectedValue("");
-                                    setSelectedOption("");
+                                    selectedValue = "";
+                                    selectedOption = "";
                                 },
                             },
                         ]
@@ -803,15 +903,55 @@ CREATE TABLE IF NOT EXISTS DOCS (
 
 
 
-                setSelectedValue(value);
-                setSelectedOption(dropdownOptions[index]);
+                selectedValue = value;
+                selectedOption = dropdownOptions[index];
                 console.log("Selected Option:", value);
+            };
+            const handleChangeText = (text) => {
+                setAliasValue(text);
+                const newValue = text.trim();
+                console.log('new value--->>', newValue)
+                if (newValue) {
+                    updatedTabData[index].tag[i].value = `alias='${newValue}'`;
+                } else if (newValue === "") {
+                    updatedTabData[index].tag[i].value = "";
+                    updatedTabData[index].tag[i].name = ""
+                }
+                else {
+                    updatedTabData[index].tag[i].value = `alias='${selectedValue}'`
+                }
+                setTabData(updatedTabData);
+            };
+            const deleteText = (text) => {
+                Alert.alert(
+                    "Confirm Delete",
+                    "Are you sure you want to delete this configuration?",
+                    [
+                        {
+                            text: "Cancel",
+                            style: "cancel",
+                            onPress: () => { selectedValue = prevSelectedValue },
+                        },
+                        {
+                            text: "Delete",
+                            style: "destructive",
+                            onPress: () => {
+
+                                updatedTabData[index].tag[i].value = "";
+                                updatedTabData[index].tag[i].name = "";
+                                setTabData(updatedTabData);
+                                selectedValue = "";
+                            },
+                        },
+                    ]
+                );
+
             };
 
 
-
             let dropdownOptions = [];
-
+            console.log("type of name ->", typeof name, 'isname->', name.trim() === 'p')
+            console.log('name', name)
             switch (prompt) {
                 case 'volume':
                     dropdownOptions = [options, ...volumeOptions.filter((opt) => opt !== options)];
@@ -822,6 +962,10 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 case 'rate':
                     dropdownOptions = [options, ...rateOptions.filter((opt) => opt !== options)];
                     break;
+                case 'level':
+                    dropdownOptions = [options, ...emphasisOptions.filter((opt) => opt !== options)];
+                    break;
+
                 default:
                     dropdownOptions = [options];
                     break;
@@ -848,8 +992,9 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 case 's':
                     dropdownOptions = [options, ...textOptions.filter((opt) => opt !== options)];
                     break;
+
                 default:
-                    // do nothing
+
                     break;
             }
 
@@ -859,38 +1004,80 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 <View key={`${index}-${i}`} style={styles.verticalWrapper}>
                     <Text style={styles.strongText}>{
 
-                        prompt ? (prompt === "interpret-as" && t.value.split("=")[1].replace(/'/g, "") === "verbatim"
-                            ? 'spell-out'
-                            : prompt === "say-as"
-                                ? t.value.split("=")[1].replace(/'/g, "")
-                                : prompt === 'rate'
-                                    ? 'speed'
-                                    : prompt)
+                        prompt ? (prompt === "interpret-as" && t.value.split("=")[1].replace(/'/g, "").trim() === "verbatim"
+                            ? 'spell-out' : prompt === "interpret-as" && t.value.split("=")[1].replace(/'/g, "").trim() === "ordinal"
+                                ? 'ordinal' : prompt === "interpret-as" && t.value.split("=")[1].replace(/'/g, "").trim() === "cardinal"
+                                    ? 'cardinal'
+                                    : prompt === 'rate'
+                                        ? 'speed' : prompt === 'level'
+                                            ? 'emphasis' : prompt === 'alias'
+                                                ? 'abbreviation' : prompt)
                             : (name === "s"
                                 ? "sentence"
                                 : name === "p"
                                     ? "paragraph"
-                                    : ""
+                                    : name
                             )}
                     </Text>
-                    {prompt !== '' && (
-                        <View style={styles.pickerWrapper}>
-                            <Picker
-                                dropdownIconRippleColor="#CCD8EE"
-                                dropdownIconColor="gray"
-                                mode="dropdown"
-                                style={[styles.updateDropdown, { color: selectedOption === "delete" ? "#E57373" : selectedValue === options ? "#6CA4FC" : "#000", },]}
-                                selectedValue={selectedValue}
-                                onValueChange={handleValueChange}>
-                                {dropdownOptions.map((option, index) => (
-                                    <Picker.Item
-                                        key={index}
-                                        label={option}
-                                        value={option}
-                                        style={{ color: option === "delete" ? "#E57373" : "#000" }}
+                    {name !== '' && (
+                        <View style={styles.pickerWrapper} key={index}>
+                            {name === 'break' ? (
+                                <View style={{ flexDirection: 'row', }}>
+                                    <TextInput
+                                        //value={String(value)}
+                                        keyboardType="numeric"
+                                        // onChangeText={onChange}
+                                        style={{
+                                            borderWidth: 1,
+                                            borderColor: 'gray',
+                                            paddingHorizontal: 10,
+                                            paddingVertical: 5,
+                                            marginHorizontal: 5,
+                                            textAlign: 'center',
+                                        }}
                                     />
-                                ))}
-                            </Picker>
+                                    <TouchableOpacity >
+                                        <Icon name="trash-outline" size={22} color="#E57373" style={{ marginTop: 20, left: 3 }} onPress={deleteText} />
+                                    </TouchableOpacity>
+                                </View>
+                            ) :
+
+                                prompt === 'alias' ? (
+                                    <View style={{ flexDirection: 'row', }}>
+                                        <TextInput
+                                            mode="outline"
+                                            defaultValue={selectedValue}
+                                            onChangeText={handleChangeText}
+                                            style={styles.inputPreview}
+                                            underlineColor="#FFF"
+                                            activeUnderlineColor='#6CA4FC'
+                                        //multiline={true}
+                                        // numberOfLines={3}
+
+                                        />
+                                        <TouchableOpacity >
+                                            <Icon name="trash-outline" size={22} color="#E57373" style={{ marginTop: 20, left: 3 }} onPress={deleteText} />
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : (
+                                    <Picker
+
+                                        dropdownIconRippleColor="#CCD8EE"
+                                        dropdownIconColor="gray"
+                                        mode="dropdown"
+                                        style={[styles.updateDropdown, { color: selectedOption === "delete" ? "#E57373" : selectedValue === options ? "#6CA4FC" : "#000", },]}
+                                        selectedValue={selectedValue}
+                                        onValueChange={handleValueChange}>
+                                        {dropdownOptions.map((option, index) => (
+                                            <Picker.Item
+                                                key={index}
+                                                label={option}
+                                                value={option}
+                                                style={{ color: option === "delete" ? "#E57373" : "#000" }}
+                                            />
+                                        ))}
+                                    </Picker>
+                                )}
                         </View>
                     )}
                 </View>
@@ -902,7 +1089,9 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 <View style={styles.cardContainer} key={index}>
                     <Card style={styles.card} elevation={4}>
                         <Card.Content>
-                            <Text style={styles.content}>{text}</Text>
+                            <ScrollView>
+                                <Text style={styles.content}>{text}</Text>
+                            </ScrollView>
                             <Divider style={{ backgroundColor: "#CCD8EE" }} />
                             <ScrollView horizontal={true} showsHorizontalScrollIndicator={true}>
 
@@ -924,18 +1113,6 @@ CREATE TABLE IF NOT EXISTS DOCS (
             </>
         );
     });
-
-
-
-
-
-
-
-
-
-
-
-
 
     const renderSubMenu = (menuIndex) => {
         if (activeMenu === 0) {
@@ -1102,13 +1279,16 @@ CREATE TABLE IF NOT EXISTS DOCS (
                                     dropdownIconRippleColor="#6CA4FC"
                                     dropdownIconColor="#2B3270"
                                     renderRow={(option) =>
-                                        option === 'Choose option' ? (
-                                            <Text style={[styles.dropdownOptionText, { color: 'gray', fontSize: 14 }]}>
-                                                {option}
-                                            </Text>
-                                        ) : (
-                                            <Text style={styles.dropdownOptionText}>{option}</Text>
-                                        )
+
+                                        <View style={[styles.optionContainer, { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10 }]}>
+                                            {option === 'Female' ? (
+                                                <Icon name="male-outline" size={24} color="#2B3270" />
+                                            ) : (
+                                                <Icon name="female-outline" size={24} color="#2B3270" />
+                                            )}
+                                            <Text style={[styles.dropdownOptionText, { marginLeft: 10 }]}>{option}</Text>
+                                        </View>
+
                                     }
                                 />
                                 <MaterialIcon name="arrow-drop-down" size={24} color="#2B3270" style={{ alignItems: 'center', marginTop: 16, position: 'absolute', right: 5, zIndex: 50, }} onPress={handleDropdownOpen} />
@@ -1142,33 +1322,36 @@ CREATE TABLE IF NOT EXISTS DOCS (
                                     }} disabled={SSMLTags.length === 0} />
                                 </View>
                                 <View style={[styles.menuItemContainer, { height: 47 }]}>
-                                    <Icon name="refresh" size={24} color="#6CA4FC" />
-                                    <Menu.Item title="Reset" onPress={() => {
-                                        if (selectedVoiceGender === '' || selectedLanguage === '') {
-                                            Alert.alert(
-                                                'Warning',
-                                                'You must choose a language and voice gender first to be able to listen to the new text.',
-                                                [{ text: 'OK', onPress: () => console.log('OK Pressed') }],
-                                                {
-                                                    cancelable: false,
-                                                    titleStyle: { color: 'red', fontSize: 24, fontWeight: 'bold' },
-                                                    messageStyle: { color: 'black', fontSize: 18 },
-                                                    containerStyle: { backgroundColor: 'white', borderWidth: 2, borderColor: 'red', borderRadius: 10 },
-                                                    buttonStyle: { backgroundColor: 'red' },
-                                                    buttonTextStyle: { color: 'red' }
-                                                }
-                                            );
-                                        } else {
-                                            setShowResetModal(true);
-                                            closeMenu();
-                                        }
-                                    }} />
+                                    <Icon name="refresh" size={24} color={defaultSSMLFromDB === `<speak>${textFromDB} </speak>` ? "#A9A9A9" : "#6CA4FC"} />
+                                    <Menu.Item title="Reset all"
+                                        disabled={defaultSSMLFromDB === `<speak>${textFromDB} </speak>`}
+                                        onPress={() => {
+                                            setReset(true);
+                                            if (selectedVoiceGender === '' || selectedLanguage === '') {
+                                                Alert.alert(
+                                                    'Warning',
+                                                    'You must choose a language and voice gender first to be able to listen to the new text.',
+                                                    [{ text: 'OK', onPress: () => console.log('OK Pressed') }],
+                                                    {
+                                                        cancelable: false,
+                                                        titleStyle: { color: 'red', fontSize: 24, fontWeight: 'bold' },
+                                                        messageStyle: { color: 'black', fontSize: 18 },
+                                                        containerStyle: { backgroundColor: 'white', borderWidth: 2, borderColor: 'red', borderRadius: 10 },
+                                                        buttonStyle: { backgroundColor: 'red' },
+                                                        buttonTextStyle: { color: 'red' }
+                                                    }
+                                                );
+                                            } else {
+                                                setShowResetModal(true);
+                                                closeMenu();
+                                            }
+                                        }} />
                                 </View>
 
                                 <Divider />
                                 <View style={[styles.menuItemContainer, { height: 46 }]}>
                                     <Icon name="eye-outline" size={24} color="#6CA4FC" />
-                                    <Menu.Item title="Preview changes" onPress={() => { setShowPreviewModal(true); closeMenu(); }} />
+                                    <Menu.Item title="Preview changes" onPress={() => { setShowPreviewModal(true); previewChanges(); closeMenu(); }} />
                                 </View>
                                 <Divider />
                                 <View style={[styles.menuItemContainer, { height: 46 }]}>
@@ -1207,8 +1390,10 @@ CREATE TABLE IF NOT EXISTS DOCS (
 
                     </View>
 
-                    <View style={styles.containerInput} removeClippedSubviews={true}>
+                    <View removeClippedSubviews={true} style={styles.containerInput}>
                         <TextInput
+                            contextMenuHidden={true}
+                            
                             onFocus={() => setInputFocused(true)} // update inputFocused state when input is focused
                             onBlur={() => setInputFocused(false)}
                             onSelectionChange={handleSelectionChange}
@@ -1224,7 +1409,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                             dense
                             style={styles.input}
                             underlineColor="#FFF"
-                            contextMenuHidden={true}
+                          
                             showSoftInputOnFocus={false}
 
                         />
@@ -1252,7 +1437,8 @@ CREATE TABLE IF NOT EXISTS DOCS (
                             <View style={{ width: 200, justifyContent: 'center', marginTop: 20, marginLeft: 'auto', marginRight: 'auto' }}>
                                 <Button
                                     mode="outlined"
-                                    disabled={selectedVoiceGender === '' || selectedLanguage === ''}
+                                    disabled={selectedVoiceGender === '' || selectedLanguage === '' || SSMLTags.length === 0}
+
                                     onPress={applyChanges}
                                     style={{
                                         borderRadius: 20,
@@ -1787,7 +1973,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                             <View style={styles.modalContent}>
 
                                 <View style={styles.modalHeader}>
-                                    <TouchableOpacity onPress={() => setShowResetModal(false)}>
+                                    <TouchableOpacity onPress={() => { setShowResetModal(false); setReset(false) }}>
                                         <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
                                     </TouchableOpacity>
                                     <Text style={styles.modalTitle}>Reset All changes </Text>
@@ -1800,10 +1986,10 @@ CREATE TABLE IF NOT EXISTS DOCS (
                                 </View>
 
                                 <View style={styles.modalButtonContainer}>
-                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => resetDefaultSSML()}>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => { resetDefaultSSML(); setReset(false) }}>
                                         <Text style={{ color: '#FFFFFF' }}>Yes</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => setShowResetModal(false)}>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#EFEFF4' }]} onPress={() => { setShowResetModal(false); setReset(false) }}>
                                         <Text style={{ color: '#2B3270' }}>No</Text>
                                     </TouchableOpacity>
                                 </View>
@@ -1814,53 +2000,59 @@ CREATE TABLE IF NOT EXISTS DOCS (
                         visible={showPreviewModal}
                         animationType="slide"
                         transparent={true}
+
                     >
                         <Provider>
-                            <View style={styles.previewModalContainer}>
-                                <TouchableOpacity
-                                    style={styles.separatorLine}
-                                    onPress={() => setShowPreviewModal(false)}
-                                />
+                            <TouchableWithoutFeedback
 
-                                {cards.length > 0 ? (
-                                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                                        {cards}
-                                        <View style={{ width: 200, justifyContent: 'center', marginTop: 20, marginLeft: 'auto', marginRight: 'auto' }}>
-                                            <Button
-                                                mode="outlined"
-                                                loading={loading}
-                                                disabled={loading}
-                                                onPress={handlePress}
-                                                style={{
-                                                    borderRadius: 20,
-                                                    marginVertical: 8,
-                                                    borderColor: "#6CA4FC",
-                                                }}
-                                                contentStyle={{ height: 40 ,}}
-                                                labelStyle={{ fontSize: 16 }}
-                                                textColor="#6CA4FC"
-                                            >
-                                                {loading ? (
-                                                    <Text style={{ color: 'gray', marginRight: 10 }}>Processing</Text>
-                                                ) : sent ? (
-                                                     
+                                onPress={() => setShowPreviewModal(false)}
+                            >
+
+
+                                <View style={styles.previewModalContainer}>
+                                    <View style={styles.separatorLine}></View>
+
+
+
+                                    {cards.length > 0 ? (
+                                        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                                            {cards}
+                                            <View style={{ width: 200, justifyContent: 'center', marginTop: 20, marginLeft: 'auto', marginRight: 'auto' }}>
+                                                <Button
+                                                    mode="outlined"
+                                                    loading={loading}
+                                                    disabled={loading}
+                                                    onPress={handlePress}
+                                                    style={{
+                                                        borderRadius: 20,
+                                                        marginVertical: 8,
+                                                        borderColor: "#6CA4FC",
+                                                    }}
+                                                    contentStyle={{ height: 40, }}
+                                                    labelStyle={{ fontSize: 16 }}
+                                                    textColor="#6CA4FC"
+                                                >
+                                                    {loading ? (
+                                                        <Text style={{ color: 'gray', marginRight: 10 }}>Processing</Text>
+                                                    ) : sent ? (
+
                                                         <Text> <Icon name="checkmark-done-outline" size={16} color="#fff" />Done</Text>
-                                                ) : (
-                                                    <Text>Apply change</Text>
-                                                )}
-                                            </Button>
+                                                    ) : (
+                                                        <Text>Apply change</Text>
+                                                    )}
+                                                </Button>
 
 
+                                            </View>
+
+                                        </ScrollView>
+                                    ) : (
+                                        <View style={styles.noDataContainer}>
                                         </View>
+                                    )}
 
-                                    </ScrollView>
-                                ) : (
-                                    <View style={styles.noDataContainer}>
-                                        <Image source={noDataImage} style={styles.noDataImage} />
-                                    </View>
-                                )}
-
-                            </View>
+                                </View>
+                            </TouchableWithoutFeedback>
                         </Provider>
                     </Modal>
 
@@ -2403,6 +2595,41 @@ const styles = StyleSheet.create({
     noDataImage: {
 
     },
+    alertStyle: {
+        backgroundColor: 'white',
+        borderRadius: 8,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        shadowColor: 'rgba(0, 0, 0, 0.4)',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.8,
+        shadowRadius: 2,
+        elevation: 4,
+    },
+    optionContainer: {
+
+
+        backgroundColor: '#FFF',
+        borderBottomWidth: 1,
+        borderBottomColor: '#EDEDED'
+    },
+    selectedOptionContainer: {
+        backgroundColor: '#000',
+    },
+
+    inputPreview: {
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 5,
+        fontSize: 16,
+        width: 180,
+        height: 50,
+        backgroundColor: '#fff',
+        color: '#fff',
+        marginTop: 10,
+    },
+
 
 });
 
