@@ -2,6 +2,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
+const path = require('path');
+const fs = require('fs');
 const app = express();
 const port = 3000;
 
@@ -196,7 +198,19 @@ let rst = replaceSsmlTagsWithEmojis(ssml)
 
 console.log(rst)
 
+// parse application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: true, limit: '100mb' }));
+// parse application/json
+app.use(bodyParser.json());
+// Instantiates a client
 
+//app.use('/audio', express.static(__dirname + '/audio.mp3'));
+app.use(function (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*"); // update the * to include specific origin domains
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
+app.use('/audios', express.static(path.join(__dirname, 'audios')));
 
 
 app.listen(port, () => {
