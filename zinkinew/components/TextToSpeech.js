@@ -135,7 +135,7 @@ const TextToSpeech = () => {
                 },
                 body: JSON.stringify({
                     DefaultSSML: defaultSSMLFromDB,
-                    id: 33,
+                    id: 6,
                 }),
             });
             const responseData = await response.json();
@@ -166,7 +166,7 @@ const TextToSpeech = () => {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ tabData, selectedLanguage, selectedVoiceGender, id: 33, DocId: 16 }),
+                body: JSON.stringify({ tabData, selectedLanguage, selectedVoiceGender, id: 6, DocId: 16 }),
             });
             const responseData = await response.json();
             if (response.ok) {
@@ -176,7 +176,7 @@ const TextToSpeech = () => {
                 db.transaction((tx) => {
                     tx.executeSql(
                         'UPDATE DOCS SET DefaultSSMl = ? WHERE id = ? AND UserId = ?',
-                        [responseData.mlString, 16, 33], // Replace with the actual values of id and UserId
+                        [responseData.mlString, 16, 6], // Replace with the actual values of id and UserId
                         (tx, result) => {
                             console.log('DefaultSSML updated successfully');
                             setDefaultSSMLFromDB(responseData.mlString);
@@ -239,41 +239,91 @@ const TextToSpeech = () => {
         // Define the default SSML value
         const newDefaultSSML = `<speak>${textFromDB} </speak>`;
 
+       
         try {
             const response = await fetch(`${IpAdress.IP}/GenerateSSML/test`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    DefaultSSML: newDefaultSSML, SSMLTags, selectedLanguage, selectedVoiceGender, id: 33
-                })
+                body: JSON.stringify({ DefaultSSML: newDefaultSSML, SSMLTags, selectedLanguage, selectedVoiceGender, id: 6, DocId: 16 })
 
-            });
+            }); console.log('selected languge', selectedLanguage);
+            console.log('voice genderrrrrrrrr', selectedVoiceGender);
+
             const responseData = await response.json();
             // Do something with the response data
-            console.log('responseData when reset ssml', responseData);
-            if (response.ok) {
+            console.log('responseData111', responseData);
+
+            if (response.ok && responseData.message == 'OK!!!') {//Quota
                 console.log('Configs sent to server');
                 setUrl(responseData.url); // Set the url state with the responseData.url value
-                // Execute an SQL query to update the DefaultSSML and Url fields of the DOCS table
-                db.transaction(tx => {
+                console.log('responseData in if (response.ok && responseData.message==OK!!!)', responseData);
+                console.log('SSMLTags in if ', SSMLTags);
+                // Update the DefaultSSML in the database with the new value
+                const db = SQLite.openDatabase({ name: 'ZinkiDB', location: 'default' });
+                db.transaction((tx) => {
                     tx.executeSql(
-                        'UPDATE DOCS SET DefaultSSML = ?, Url = ? WHERE id = ? AND UserId = ?',
-                        [newDefaultSSML, '', 16, 33], // Replace with the actual values of id and UserId, and set the Url to an empty string
+                        'UPDATE DOCS SET DefaultSSMl = ? , Url = ? WHERE id = ? AND UserId = ?',
+                        [responseData.SSML, responseData.url, 16, 6], // Replace with the actual values of id and UserId
                         (tx, result) => {
-                            console.log('DefaultSSML updated successfully', newDefaultSSML);
-                            setDefaultSSMLFromDB(newDefaultSSML);
+                            console.log('DefaultSSML updated successfully');
+                            setDefaultSSMLFromDB(responseData.SSML);
+
+
                         },
-                        error => {
+                        (error) => {
                             console.log('Error updating DefaultSSML:', error);
                         }
                     );
                 });
-            } else {
-                console.log('Error sending configs to server');
+
+                setSSMLTags([]);
             }
-        } catch (error) {
+            else if (responseData.message === 'not ok') {
+
+                console.log('Error sending configs to server');
+                console.log('================= Error Message ===================');
+                console.log('================= Error Message ===================');
+                Alert.alert(
+                    'Warning',
+                    'This is an invalid config. Please reconfig your voice and make sure that you don\'t have two same configurations inside each other',
+                [
+                {
+                    text: 'OK',
+                    style: 'cancel',
+                    color: '#6CA4FC',
+                }
+                ],
+                    { cancelable: false }
+                );
+                console.log('this is an invalid config please reconfig your voice and make sure that you dont have 2 confige inside each other');
+
+                console.log('================= Error Message ===================');
+                console.log('================= Error Message ===================');
+
+                console.log('responseData in else section', responseData);
+
+                setSSMLTags([]); console.log('SSMLTags in else section ', SSMLTags);
+                console.log('SSMLTags in else section after empty the array ', SSMLTags);
+
+            }
+
+
+
+            else {
+
+                console.log('Error sending configs to server');
+                Alert.alert(
+                    'Warning',
+                    responseData.message,
+                    [{ text: 'OK' }],
+                    { cancelable: false, }
+                );
+
+            }
+        } 
+        catch (error) {
             console.log('Error sending configs to server:', error.message);
         }
         setShowResetModal(false);
@@ -597,7 +647,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
         db.transaction((tx) => {
             tx.executeSql(
                 'SELECT * FROM users ',
-                [13],
+                [],
                 (tx, results) => {
                     const users = results.rows.raw();
                     console.log('Users:', users);
@@ -612,7 +662,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
         db.transaction((tx) => {
             tx.executeSql(
                 'SELECT * FROM DOCS WHERE id = ? AND UserId = ?',
-                [16, 33],
+                [16, 6],
                 (tx, results) => {
                     const users = results.rows.raw();
                     console.log('Docs:', users);
@@ -629,7 +679,8 @@ CREATE TABLE IF NOT EXISTS DOCS (
                     console.log('=================textFromDB===================');
                     console.log(textFromDB);
                     console.log('=================textFromDB===================');
-                    seturlFromDB(Url);
+                    urlwithoutspace = Url.replace(/\s+/g, '');
+                    seturlFromDB(urlwithoutspace);
 
                     console.log('=================textFromDB===================');
                     console.log(textFromDB);
@@ -675,7 +726,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                               headers: {
                                   'Content-Type': 'application/json'
                               },
-                              body: JSON.stringify({ userId: "33", Quota_Type: "premium", })
+                              body: JSON.stringify({ userId: "6", Quota_Type: "premium", })
                           })
                               .then(response => {
                                   if (!response.ok) {
@@ -706,7 +757,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
         
           
                   db.transaction((tx) => {
-                      tx.executeSql(insertDocsSql, [' To be, or not to be, that is the question Whether tis nobler in the mind to suffer The slings and arrows of outrageous fortune, Or to take arms against a sea of troubles And by opposing end them', 'image', '<speak>To be, or not to be, that is the question Whether tis nobler in the mind to suffer The slings and arrows of outrageous fortune,Or to take arms against a sea of troubles And by opposing end them </speak>', '33', `${IpAdress.IP}/audio`], (_, result) => {
+                      tx.executeSql(insertDocsSql, [' To be, or not to be, that is the question Whether tis nobler in the mind to suffer The slings and arrows of outrageous fortune, Or to take arms against a sea of troubles And by opposing end them', 'image', '<speak>To be, or not to be, that is the question Whether tis nobler in the mind to suffer The slings and arrows of outrageous fortune,Or to take arms against a sea of troubles And by opposing end them </speak>', '6', `${IpAdress.IP}/audio`], (_, result) => {
                           console.log('User inserted successfully');
                       }, (_, error) => {
                           console.log('Error inserting Docs:', error);
@@ -743,7 +794,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ DefaultSSML: defaultSSMLFromDB, SSMLTags, selectedLanguage, selectedVoiceGender, id: 33, DocId: 16 })
+                body: JSON.stringify({ DefaultSSML: defaultSSMLFromDB, SSMLTags, selectedLanguage, selectedVoiceGender, id: 6, DocId: 16 })
 
             }); console.log('selected languge', selectedLanguage);
             console.log('voice genderrrrrrrrr', selectedVoiceGender);
@@ -762,7 +813,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 db.transaction((tx) => {
                     tx.executeSql(
                         'UPDATE DOCS SET DefaultSSMl = ? , Url = ? WHERE id = ? AND UserId = ?',
-                        [responseData.SSML, responseData.url, 16, 33], // Replace with the actual values of id and UserId
+                        [responseData.SSML, responseData.url, 16, 6], // Replace with the actual values of id and UserId
                         (tx, result) => {
                             console.log('DefaultSSML updated successfully');
                             setDefaultSSMLFromDB(responseData.SSML);
@@ -809,7 +860,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
 
             }
         } catch (error) {
-            console.log('Error sending configs to server:', error.message);
+            console.log('Error sending configs to server::::  ', error.message);
         }
     };
 
