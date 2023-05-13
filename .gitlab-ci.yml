@@ -54,7 +54,7 @@ assembleDebug:
   script:
     - echo "Running assembleDebug stage"
 
-# Run all tests, if any fails, interrupt the pipeline(fail it)
+# Run all Tests, if any fails, interrupt the pipeline(fail it)
 debugTests:
   interruptible: true
   stage: test
