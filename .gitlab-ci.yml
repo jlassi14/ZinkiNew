@@ -56,7 +56,7 @@ assembleDebug:
 
 # Run all Tests, if any fails, interrupt the pipeline(fail it)
 debugTests:
-  interruptible: true
+  # interruptible: true
   stage: test
   script:
     - echo "Running debugTests stage"
