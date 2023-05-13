@@ -30,7 +30,7 @@ before_script:
   # Nothing fancy here, just checking sdkManager version
   - sdkmanager --version
 
-  # use yes to accept all licenses
+  # use yes ffff to accept all licenses
   - yes | sdkmanager --sdk_root=${ANDROID_HOME} --licenses || true
   - sdkmanager --sdk_root=${ANDROID_HOME} "platforms;android-${ANDROID_COMPILE_SDK}"
   - sdkmanager --sdk_root=${ANDROID_HOME} "platform-tools"
