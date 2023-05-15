@@ -33,14 +33,13 @@ build-apk:
       - zinkinew/node_modules/
       - zinkinew/android/app/build/outputs/
   script:
-    - |
-      npm install
-      npm run android:release
-      mv android/app/build/outputs/apk/release/app-release.apk app.apk
-      if [ $? -eq 0 ]; then echo "APK build succeeded"; else echo "APK build failed"; fi
-      echo "Deploying APK to web server..."
-      # command to deploy apk to web server
-      if [ $? -eq 0 ]; then echo "APK deployment succeeded"; else echo "APK deployment failed"; fi
+    - npm install
+    - npx react-native run-android --variant=release
+    - mv android/app/build/outputs/apk/release/app-release.apk app.apk
+    - if [ $? -eq 0 ]; then echo "APK build succeeded"; else echo "APK build failed"; fi
+    - echo "Deploying APK to web server..."
+    - # command to deploy apk to web server
+    - if [ $? -eq 0 ]; then echo "APK deployment succeeded"; else echo "APK deployment failed"; fi
 
 
 deploy:
