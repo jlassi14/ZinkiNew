@@ -11,8 +11,10 @@ build-backend:
     - docker:dind
   script:
     - docker build -t jlassi14/backend1:$CI_COMMIT_SHORT_SHA -f backend/Dockerfile.dev ./backend
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - if [ $? -eq 0 ]; then echo "Docker build succeeded"; else echo "Docker build failed"; fi
+    - docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker push jlassi14/backend1:$CI_COMMIT_SHORT_SHA
+    - if [ $? -eq 0 ]; then echo "Docker push succeeded"; else echo "Docker push failed"; fi
 
 
 deploy:
@@ -24,7 +26,5 @@ deploy:
     DOCKER_HOST: tcp://docker:2375/
   script:
     - docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - if [ $? -eq 0 ]; then echo "Docker build succeeded"; else echo "Docker build failed"; fi
     - docker pull jlassi14/backend1:$CI_COMMIT_SHORT_SHA
     - docker run -d --name backend -p 5000:5000 -e NODE_ENV=production jlassi14/backend1:$CI_COMMIT_SHORT_SHA
-    - if [ $? -eq 0 ]; then echo "Docker push succeeded"; else echo "Docker push failed"; fi
