@@ -13,6 +13,9 @@ build-backend:
     - docker build -t jlassi14/backend1:$CI_COMMIT_SHORT_SHA -f backend/Dockerfile.dev ./backend
     - if [ $? -eq 0 ]; then echo "Docker build succeeded"; else echo "Docker build failed"; fi
     - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin
+
+
     - docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY_PASSWORD docker.io 
     - docker push jlassi14/backend1:$CI_COMMIT_SHORT_SHA
     - if [ $? -eq 0 ]; then echo "Docker push succeeded"; else echo "Docker push failed"; fi
