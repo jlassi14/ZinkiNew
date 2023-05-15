@@ -1,6 +1,5 @@
 /* eslint-disable prettier/prettier */
 
-const UserRoute = require('./userRoute');
 const SSMLRoute = require('./SSMLRoute');
 
 module.exports=(app)=>{
@@ -11,7 +10,6 @@ module.exports=(app)=>{
 	});
 
 
-	app.use('/User',UserRoute);
 	app.use('/GenerateSSML',SSMLRoute);
 
 }
