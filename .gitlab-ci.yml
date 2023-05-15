@@ -34,6 +34,8 @@ build-apk:
   script:
     - cd zinkinew
     - npm install
+    - cd android
+    - ls
     - chmod +x gradlew
     - ./gradlew assembleRelease
 
