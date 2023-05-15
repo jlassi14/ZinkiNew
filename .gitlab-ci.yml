@@ -20,26 +20,22 @@ build-apk:
       - zinkinew/android/.gradle/
       - zinkinew/node_modules/
       - zinkinew/android/app/build/outputs/
- before_script:
-  - apt-get update && apt-get install -y wget unzip openjdk-11-jdk
-  - wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
-  - mkdir -p $ANDROID_HOME/cmdline-tools
-  - unzip sdk-tools-linux-4333796.zip -d $ANDROID_HOME/cmdline-tools
-  - export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-  - export PATH=$PATH:$ANDROID_HOME/cmdline-tools/tools/bin
-  - echo $ANDROID_HOME
-  - ls -l $ANDROID_HOME/cmdline-tools/tools
-  - echo $PATH
-  - apt-get install -y libjaxb-api-java
- script:
-    - ls
+  before_script:
+    - apt-get update && apt-get install -y wget unzip openjdk-11-jdk
+    - wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
+    - mkdir -p $ANDROID_HOME/cmdline-tools
+    - unzip sdk-tools-linux-4333796.zip -d $ANDROID_HOME/cmdline-tools
+    - export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+    - export PATH=$PATH:$ANDROID_HOME/cmdline-tools/tools/bin
+    - echo $ANDROID_HOME
+    - ls -l $ANDROID_HOME/cmdline-tools/tools
+    - echo $PATH
+    - apt-get install -y libjaxb-api-java
+  script:
     - cd zinkinew
-    - ls
     - npm install
     - chmod +x gradlew
     - ./gradlew assembleRelease
-    
-
 
 build-backend:
   stage: build-backend
@@ -54,7 +50,6 @@ build-backend:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin
     - docker push jlassi14/backend1:$CI_COMMIT_SHORT_SHA
     - if [ $? -eq 0 ]; then echo "Docker push succeeded"; else echo "Docker push failed"; fi
-
 
 deploy:
   stage: deploy
