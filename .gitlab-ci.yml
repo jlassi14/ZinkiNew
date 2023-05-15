@@ -35,9 +35,13 @@ build-apk:
     - cd zinkinew
     - npm install
     - cd android
-    - ls
     - chmod +x gradlew
+    - yes | sdkmanager --licenses
+    - sdkmanager "emulator" "patcher;v4" "platform-tools" "build-tools;30.0.3" "platforms;android-33" "tools"
     - ./gradlew assembleRelease
+  artifacts:
+    paths:
+      - zinkinew/android/app/build/outputs/apk/release/app-release.apk
 
 build-backend:
   stage: build-backend
@@ -47,8 +51,6 @@ build-backend:
   script:
     - docker build -t jlassi14/backend1:$CI_COMMIT_SHORT_SHA -f backend/Dockerfile.dev ./backend
     - if [ $? -eq 0 ]; then echo "Docker build succeeded"; else echo "Docker build failed"; fi
-    - echo "$CI_REGISTRY_USER" 
-    - echo "$CI_REGISTRY_PASSWORD" 
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin
     - docker push jlassi14/backend1:$CI_COMMIT_SHORT_SHA
     - if [ $? -eq 0 ]; then echo "Docker push succeeded"; else echo "Docker push failed"; fi
