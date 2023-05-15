@@ -1,62 +1,29 @@
-# This file is a template, and might need editing before it works on your project.
-# To contribute improvements to CI/CD templates, please follow the Development guide at:
-# https://docs.gitlab.com/ee/development/cicd/templates.html
-# This specific template is located at:
-# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Android.gitlab-ci.yml
+# Define the stages for the pipeline
+stages:
+  - build-backend
+  - deploy
 
-image: openjdk:8-jdk
-
-variables:
-
-  # ANDROID_COMPILE_SDK is the version of Android you're compiling with.
-  # It should match compileSdkVersion.
-  ANDROID_COMPILE_SDK: "29"
-
-  # ANDROID_BUILD_TOOLS is the version of the Android build tools you are using.
-  # It should match buildToolsVersion.
-  ANDROID_BUILD_TOOLS: "29.0.3"
-
-  # It's what version of the command line tools we're going to download from the official site.
-  # Official Site-> https://developer.android.com/studio/index.html
-  # There, look down below at the cli tools only, sdk tools package is of format:
-  #        commandlinetools-os_type-ANDROID_SDK_TOOLS_latest.zip
-  # when the script was last modified for latest compileSdkVersion, it was which is written down below
-  ANDROID_SDK_TOOLS: "6514223"
-
-# Packages installation before running script
-before_script:
-  - echo "Installing dependencies"
-
-  # Nothing fancy here, just checking sdkManager version
-  - sdkmanager --version
-
-  # use yes ffff to accept all licenses
-  - yes | sdkmanager --sdk_root=${ANDROID_HOME} --licenses || true
-  - sdkmanager --sdk_root=${ANDROID_HOME} "platforms;android-${ANDROID_COMPILE_SDK}"
-  - sdkmanager --sdk_root=${ANDROID_HOME} "platform-tools"
-  - sdkmanager --sdk_root=${ANDROID_HOME} "build-tools;${ANDROID_BUILD_TOOLS}"
-
-  # Not necessary, but just for surity
-  - chmod +x ./gradlew
-
-# Basic android and gradle stuff
-# Check linting
-lintDebug:
-  interruptible: true
+# Define the jobs for each stage
+build-backend:
   stage: build
+  image: docker:stable
+  services:
+    - docker:dind
   script:
-    - echo "Running lintDebug stage"
+    - cd backend
+    - docker build -t jlassi14/backend1:$CI_COMMIT_SHORT_SHA -f Dockerfile.dev .
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push jlassi14/backend1:$CI_COMMIT_SHORT_SHA
 
-# Make Project
-build:
-  interruptible: true
-  stage: build
+deploy:
+  stage: deploy
+  image: docker:stable
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
   script:
-    - echo "Running build stage"
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull jlassi14/backend1:$CI_COMMIT_SHORT_SHA
+    - docker run -d --name backend -p 5000:5000 -e NODE_ENV=production jlassi14/backend1:$CI_COMMIT_SHORT_SHA
 
-# Run all Tests, if any fails, interrupt the pipeline(fail it)
-Tests:
-  # interruptible: true
-  stage: test
-  script:
-    - echo "Running Tests stage"
