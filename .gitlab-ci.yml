@@ -20,7 +20,7 @@ build-apk:
       - zinkinew/android/.gradle/
       - zinkinew/node_modules/
       - zinkinew/android/app/build/outputs/
-  before_script:
+ before_script:
   - apt-get update && apt-get install -y wget unzip openjdk-11-jdk
   - wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
   - mkdir -p $ANDROID_HOME/cmdline-tools
@@ -31,16 +31,14 @@ build-apk:
   - ls -l $ANDROID_HOME/cmdline-tools/tools
   - echo $PATH
   - apt-get install -y libjaxb-api-java
-  - java --add-modules java.xml.bind -version
-  - yes | sdkmanager --licenses
-  script:
+ script:
     - ls
     - cd zinkinew
     - ls
     - npm install
-    - npx react-native run-android --variant=release
-    - mv android/app/build/outputs/apk/release/app-release.apk app.apk
-    - if [ $? -eq 0 ]; then echo "APK build succeeded"; else echo "APK build failed"; fi
+    - chmod +x gradlew
+    - ./gradlew assembleRelease
+    
 
 
 build-backend:
