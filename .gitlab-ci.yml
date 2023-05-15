@@ -6,7 +6,7 @@ stages:
 build:
   stage: build
   script:
-    - echo "Building mobile app"
+    - echo "Building mobile m app"
 
 test:
   stage: test
