@@ -5,6 +5,7 @@ stages:
   - deploy
 
 # Define the jobs for each stage
+image: openjdk:11-jdk
 
 build-apk:
   stage: build-apk
@@ -19,17 +20,18 @@ build-apk:
       - zinkinew/android/.gradle/
       - zinkinew/node_modules/
       - zinkinew/android/app/build/outputs/
+
   before_script:
-    - apt-get update && apt-get install -y openjdk-11-jdk wget unzip
-    - wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
-    - mkdir -p $ANDROID_HOME/cmdline-tools
-    - unzip sdk-tools-linux-4333796.zip -d $ANDROID_HOME/cmdline-tools
-    - export PATH=$PATH:$ANDROID_HOME/cmdline-tools/tools/bin
-    - echo $ANDROID_HOME
-    - ls $ANDROID_HOME/cmdline-tools/tools/bin
-    - echo $PATH
-    - sdkmanager --list
-    - yes | sdkmanager --licenses
+     - apt-get update && apt-get install -y wget unzip
+     - wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
+     - mkdir -p $ANDROID_HOME/cmdline-tools
+     - unzip sdk-tools-linux-4333796.zip -d $ANDROID_HOME/cmdline-tools
+     - export PATH=$PATH:$ANDROID_HOME/cmdline-tools/tools/bin
+     - echo $ANDROID_HOME
+     - ls $ANDROID_HOME/cmdline-tools/tools/bin
+     - echo $PATH
+     - sdkmanager --list
+     - yes | sdkmanager --licenses
 
   script:
     - ls
