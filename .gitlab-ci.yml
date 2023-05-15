@@ -26,7 +26,7 @@ build-apk:
      - wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
      - mkdir -p $ANDROID_HOME/cmdline-tools
      - unzip sdk-tools-linux-4333796.zip -d $ANDROID_HOME/cmdline-tools
-     - export PATH=$PATH:$ANDROID_HOME/cmdline-tools/tools/bin
+     - export PATH=$PATH:$ANDROID_HOME/cmdline-tools/tools/bin # Add this line
      - echo $ANDROID_HOME
      - ls $ANDROID_HOME/cmdline-tools/tools/bin
      - echo $PATH
