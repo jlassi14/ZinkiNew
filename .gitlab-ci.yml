@@ -1,19 +1,29 @@
+# Define the stages for the pipeline
 stages:
-  - build
-  - test
+  - build-backend
   - deploy
 
-build:
+# Define the jobs for each stage
+build-backend:
   stage: build
+  image: docker:stable
+  services:
+    - docker:dind
   script:
-    - echo "Building mobile app"
-
-test:
-  stage: test
-  script:
-    - echo "Testing mobile app"
+    - cd backend
+    - docker build -t jlassi14/backend1:$CI_COMMIT_SHORT_SHA -f Dockerfile.dev .
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push jlassi14/backend1:$CI_COMMIT_SHORT_SHA
 
 deploy:
   stage: deploy
+  image: docker:stable
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
   script:
-    - echo "Deploying mobile app"
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull jlassi14/backend1:$CI_COMMIT_SHORT_SHA
+    - docker run -d --name backend -p 5000:5000 -e NODE_ENV=production jlassi14/backend1:$CI_COMMIT_SHORT_SHA
+
