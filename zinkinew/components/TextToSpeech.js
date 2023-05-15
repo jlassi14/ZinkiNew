@@ -716,7 +716,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
         // Insert a new user into the "users" table
         /*
                  db.transaction((tx) => {
-                      tx.executeSql(insertUserSql, ['Omar Jlassi', 'Omar.Jlassi@gmail.com', '92131827', 'azerty123'], (_, result) => {
+                      tx.executeSql(insertUserSql, ['iheb abbassi', 'iheb.abbassi@gmail.com', '92131827', 'azerty123'], (_, result) => {
                           console.log('User inserted successfully');
                           const lastInsertId = result.insertId;
                           //console.log('User inserted successfully with ID ','${ lastInsertId });

@@ -2,7 +2,7 @@
 const fs = require('fs');
 const { Buffer } = require('buffer');
 const serveStatic = require('serve-static');
-const Quota = require('../Models/Quota');
+const Quota = require('../models/Quota');
 const IpAdress = require('./IpAdress');
 const cheerio = require('cheerio');
 const path = require('path');
@@ -41,7 +41,52 @@ exports.Quota = async (req, res) => {
   }
 };
 
-
+exports.SenToGoogle= async (req, res) => {
+  const { DefaultSSML, selectedLanguage,selectedVoiceGender , id ,  DocId} = req.body;
+    // Create the request object
+         const request = {
+           input: { ssml: DefaultSSML },
+           voice: {
+             languageCode: selectedLanguage, ssmlGender: selectedVoiceGender  },
+           audioConfig: { audioEncoding: 'MP3' }
+         };
+ 
+         // Send the request to the Text-to-Speech API
+         const response = await fetch('https://texttospeech.googleapis.com/v1beta1/text:synthesize', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json', 'X-goog-api-key': 'AIzaSyBpKakDqYNOO4jegJsZ5X5Md-0NBLezJU0' },
+           body: JSON.stringify(request)
+         });
+ 
+         const responseData = await response.json();
+         const audioContent = responseData.audioContent;
+ 
+         if (audioContent) {
+           const decodedAudioContent = Buffer.from(audioContent.toString('base64'), 'base64');
+           const folderName1 ='U'+ id ; // replace with dynamic folder name
+           const folderName2 ='D'+ DocId; // replace with dynamic folder name
+ 
+           const audioPath = path.join('audios', folderName1,  folderName2);
+         
+           // create directory if it doesn't exist
+           if (!fs.existsSync(audioPath)) {
+             fs.mkdirSync(audioPath, { recursive: true });
+           }
+         
+           // Write the decoded audio content to a new file
+           fs.writeFile(path.join(audioPath, 'audio.mp3'), decodedAudioContent, (err) => {
+             if (err) throw err;
+             console.log('File created!');
+           });
+         
+           // Send the response to the client with the file path 
+           res.send({ message: 'OK!!!', url: `${IpAdress.IP}/audios/${folderName1}/${folderName2}/audio.mp3`, SSML: DefaultSSML });
+           return;
+         } else {
+           res.status(400).send({ message: 'Error: audio content not found' });
+         }
+       
+}
 exports.getQuotaById = async (req, res) => {
   const { id } = req.params; // Update parameter name to QuotaID
 
