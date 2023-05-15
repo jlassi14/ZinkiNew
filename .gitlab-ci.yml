@@ -48,15 +48,15 @@ lintDebug:
     - echo "Running lintDebug stage"
 
 # Make Project
-assembleDebug:
+build:
   interruptible: true
   stage: build
   script:
-    - echo "Running assembleDebug stage"
+    - echo "Running build stage"
 
 # Run all Tests, if any fails, interrupt the pipeline(fail it)
-debugTests:
+Tests:
   # interruptible: true
   stage: test
   script:
-    - echo "Running debugTests stage"
+    - echo "Running Tests stage"
