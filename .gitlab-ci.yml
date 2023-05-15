@@ -14,7 +14,6 @@ build-backend:
     - if [ $? -eq 0 ]; then echo "Docker build succeeded"; else echo "Docker build failed"; fi
     - echo "CI_REGISTRY_USER: $CI_REGISTRY_USER"
     - echo "CI_REGISTRY_PASSWORD: $CI_REGISTRY_PASSWORD"
-
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "CI_REGISTRY_PASSWORD"
     - docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY_PASSWORD docker.io 
     - docker push jlassi14/backend1:$CI_COMMIT_SHORT_SHA
