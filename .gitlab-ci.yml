@@ -10,7 +10,7 @@ build-apk:
   stage: build-apk
   image: node:lts
   variables:
-    ANDROID_HOME: /opt/android
+    ANDROID_HOME: /opt/android-sdk
     GRADLE_USER_HOME: cache/.gradle
     CACHE_NAME: apk_cache
   cache:
@@ -19,6 +19,9 @@ build-apk:
       - zinkinew/android/.gradle/
       - zinkinew/node_modules/
       - zinkinew/android/app/build/outputs/
+  before_script:
+    - apt-get update && apt-get install -y openjdk-8-jdk android-sdk
+    - yes | sdkmanager --licenses
   script:
     - ls
     - cd zinkinew
