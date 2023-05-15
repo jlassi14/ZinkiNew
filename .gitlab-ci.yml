@@ -21,6 +21,8 @@ build-apk:
       - zinkinew/android/app/build/outputs/
   before_script:
     - apt-get update && apt-get install -y openjdk-11-jdk android-sdk
+    - export PATH=${PATH}:/opt/android-sdk/tools/bin:/opt/android-sdk/platform-tools
+
     - yes | sdkmanager --licenses
   script:
     - ls
