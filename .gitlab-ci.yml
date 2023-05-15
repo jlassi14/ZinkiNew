@@ -33,6 +33,7 @@ build-apk:
       - zinkinew/node_modules/
       - zinkinew/android/app/build/outputs/
   script:
+    - ls
     - npm install
     - npx react-native run-android --variant=release
     - mv android/app/build/outputs/apk/release/app-release.apk app.apk
