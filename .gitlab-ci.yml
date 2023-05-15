@@ -11,7 +11,7 @@ build:
 test:
   stage: test
   script:
-    - echo "Testing mobile app"
+    - echo "Testing mobile ,app"
 
 deploy:
   stage: deploy
