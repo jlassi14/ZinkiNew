@@ -20,7 +20,7 @@ build-apk:
       - zinkinew/node_modules/
       - zinkinew/android/app/build/outputs/
   before_script:
-    - apt-get update && apt-get install -y openjdk-8-jdk android-sdk
+    - apt-get update && apt-get install -y openjdk-11-jdk android-sdk
     - yes | sdkmanager --licenses
   script:
     - ls
