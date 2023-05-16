@@ -14,7 +14,7 @@ app.use(bodyParser.urlencoded({ extended: true,limit :'100mb' }));
 app.use(bodyParser.json());
 // Instantiates a client
 
-app.use('/audio', express.static(__dirname + '/audio.mp3'));
+//app.use('/audio', express.static(__dirname + '/audio.mp3'));
 
 
 
@@ -127,7 +127,8 @@ const num = 0;
   
 
 
-mongoose.connect('mongodb://127.0.0.1:27017/ZinkDB', {useNewUrlParser: true, useUnifiedTopology: true}).then(()=>{
+
+mongoose.connect( "mongodb+srv://omarjlassi454:nH4oHee1sSqa9ERe@zinkdb.mltzvmw.mongodb.net/").then(()=>{
 	console.log('mongodb connected successfully');
 }).catch((err)=>{
 	console.log(err);

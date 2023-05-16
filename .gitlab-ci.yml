@@ -1,0 +1,68 @@
+# Define the stages for the pipeline
+stages:
+  - build-apk
+  - build-backend 
+  - deploy
+
+# Define the jobs for each stage
+image: openjdk:11-jdk
+
+build-apk:
+  stage: build-apk
+  image: node:lts
+  variables:
+    ANDROID_HOME: /opt/android-sdk
+    GRADLE_USER_HOME: cache/.gradle
+    CACHE_NAME: apk_cache
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-${CACHE_NAME}
+    paths:
+      - zinkinew/android/.gradle/
+      - zinkinew/node_modules/
+      - zinkinew/android/app/build/outputs/
+  before_script:
+    - apt-get update && apt-get install -y wget unzip openjdk-11-jdk
+    - wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
+    - mkdir -p $ANDROID_HOME/cmdline-tools
+    - unzip sdk-tools-linux-4333796.zip -d $ANDROID_HOME/cmdline-tools
+    - export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+    - export PATH=$PATH:$ANDROID_HOME/cmdline-tools/tools/bin
+    - echo $ANDROID_HOME
+    - ls -l $ANDROID_HOME/cmdline-tools/tools
+    - echo $PATH
+    - apt-get install -y libjaxb-api-java
+  script:
+    - cd zinkinew
+    - npm install
+    - cd android
+    - chmod +x gradlew
+    - yes | sdkmanager --licenses
+    - sdkmanager "emulator" "patcher;v4" "platform-tools" "build-tools;30.0.3" "platforms;android-33" "tools"
+    - ./gradlew assembleRelease
+  artifacts:
+    paths:
+      - zinkinew/android/app/build/outputs/apk/release/app-release.apk
+
+build-backend:
+  stage: build-backend
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker build -t jlassi14/backend1:$CI_COMMIT_SHORT_SHA -f backend/Dockerfile.dev ./backend
+    - if [ $? -eq 0 ]; then echo "Docker build succeeded"; else echo "Docker build failed"; fi
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin
+    - docker push jlassi14/backend1:$CI_COMMIT_SHORT_SHA
+    - if [ $? -eq 0 ]; then echo "Docker push succeeded"; else echo "Docker push failed"; fi
+
+deploy:
+  stage: deploy
+  image: docker:stable
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin
+    - docker pull jlassi14/backend1:$CI_COMMIT_SHORT_SHA
+    - docker run -d --name backend -p 5000:5000 -e NODE_ENV=production jlassi14/backend1:$CI_COMMIT_SHORT_SHA

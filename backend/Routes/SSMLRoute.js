@@ -12,4 +12,5 @@ router.post('/test',GenerateSSmlController.TesteSsml);
 router.get('/QuotaID/:id',GenerateSSmlController.getQuotaById);
 router.post('/UpdateTags', GenerateSSmlController.UpdateTags);
 router.post('/DisplayTags', GenerateSSmlController.DisplayTags); 
+router.post('/sentogoogle', GenerateSSmlController.SenToGoogle); 
 module.exports = router;
