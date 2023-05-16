@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View,  TouchableOpacity, Text, StyleSheet, Modal, TouchableWithoutFeedback, SafeAreaView, Image, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Modal, SafeAreaView, Image, ScrollView, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 import Octicons from 'react-native-vector-icons/Octicons';
-//import noDataImage from '../assets/noData.svg';
+import noDataImage from '../assets/images/noData.png';
 
-import { TextInput, Button, Menu, Divider, Provider, Card, IconButton, } from 'react-native-paper';
+import NumericInput from 'react-native-numeric-input'
+import { TextInput, Button, Menu, Divider, Provider, Card, RadioButton, } from 'react-native-paper';
 import Slider from '@react-native-community/slider';
 import Soundplayer from './Soundplayer';
 import { Picker } from '@react-native-picker/picker';
@@ -25,7 +26,9 @@ const TextToSpeech = () => {
     var [urlFromDB, seturlFromDB] = useState("");
     const [url, setUrl] = useState(null);
     const TTS_API_KEY = 'AIzaSyBpKakDqYNOO4jegJsZ5X5Md-0NBLezJU0';
+
     const TTS_LANGUAGES_API_URL = `https://texttospeech.googleapis.com/v1beta1/voices?key=${TTS_API_KEY}`;
+
     const [tabData, setTabData] = useState([]);
     const [tab, setTab] = useState([]);
     const volumeOptions = ['silent', 'x-soft', 'soft', 'medium', 'loud', 'x-loud', 'default', 'delete'];
@@ -41,7 +44,8 @@ const TextToSpeech = () => {
     const db = SQLite.openDatabase({ name: 'ZinkiDB', location: 'default' });
     const inputRef = useRef(null);
     const [aliasValue, setAliasValue] = useState('');
-
+    const [breakValue, setBreakValue] = useState('')
+    const [value, setValue] = useState('');
 
 
 
@@ -92,6 +96,7 @@ const TextToSpeech = () => {
     const [showDiscardModal, setShowDiscardModal] = useState(false);
     const [showResetModal, setShowResetModal] = useState(false);
     const [showPreviewModal, setShowPreviewModal] = useState(false);
+    const [showVoiceGenderModal, setShowVoiceGenderModal] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
 
 
@@ -117,6 +122,8 @@ const TextToSpeech = () => {
     const [abbInfo, setAbbInfo] = useState({ tag: 'sub ', value: '', StartPos: lastSelection.start, EndPos: lastSelection.end });
     const [ordinalInfo, setOrdinalInfo] = useState({ tag: 'say-as', value: 'interpret-as=\'ordinal\'', StartPos: lastSelection.start, EndPos: lastSelection.end });
     const [cardinalInfo, setCardinalInfo] = useState({ tag: 'say-as', value: 'interpret-as=\'cardinal\'', StartPos: lastSelection.start, EndPos: lastSelection.end });
+    const [voiceGenderInfo, setVoiceGenderInfo] = useState({ tag: 'voice', value: '', StartPos: lastSelection.start, EndPos: lastSelection.end });
+
     const [inputValue, setInputValue] = useState('');
 
 
@@ -481,6 +488,19 @@ const TextToSpeech = () => {
         setModalAbbVisible(false);
 
     };
+    const onVoiceGenderSubmit = useCallback(() => {
+        if (voiceGenderInfo.value === 'Male' || voiceGenderInfo.value === 'Female') {
+            const updatedVGInfo = {
+                ...voiceGenderInfo, StartPos: lastSelection.start, EndPos: lastSelection.end, value: `gender='${voiceGenderInfo.value}'`
+            };
+            const newSSMLTags = [...SSMLTags, updatedVGInfo];
+            setSSMLTags(newSSMLTags);
+        }
+        setVoiceGenderInfo({ tag: 'voice', value: '', StartPos: 0, EndPos: 0 });
+        setModalEmphasisVisible(false);
+    }, [voiceGenderInfo, selection, SSMLTags]);
+
+
     const onRateSetAsDefault = useCallback(() => {
         const updatedRateInfo = {
             ...rateInfo, StartPos: lastSelection.start, EndPos: lastSelection.end, value: `rate= 'default'`
@@ -778,7 +798,18 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 setSSMLTags([]);
             }
             else if (responseData.message === 'not ok') {
-
+                Alert.alert(
+                    'Warning',
+                    'This is an invalid config. Please reconfig your voice and make sure that you don\'t have two same configurations inside each other',
+                    [
+                        {
+                            text: 'OK',
+                            style: 'cancel',
+                            color: '#6CA4FC',
+                        }
+                    ],
+                    { cancelable: false }
+                );
                 console.log('Error sending configs to server');
                 console.log('================= Error Message ===================');
                 console.log('================= Error Message ===================');
@@ -853,7 +884,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
             let selectedValue = options;
             let selectedOption = "";
             let prevSelectedValue = "";
-
+            let intValue = parseInt(selectedValue.split("s")[0]);
             console.log('optionsssssssssssssssss', options)
             console.log('ttttttt', t)
 
@@ -922,6 +953,19 @@ CREATE TABLE IF NOT EXISTS DOCS (
                 }
                 setTabData(updatedTabData);
             };
+            const handleBreakUpdate = (val) => {
+                setBreakValue(val);
+                const newValue = parseInt(val);
+                console.log('new value--->>', newValue)
+                if (val) {
+                    updatedTabData[index].tag[i].value = `time='${newValue}s'`;
+                }
+                else {
+                    updatedTabData[index].tag[i].value = `time='${selectedValue}s'`
+                }
+                setTabData(updatedTabData);
+            };
+
             const deleteText = (text) => {
                 Alert.alert(
                     "Confirm Delete",
@@ -1020,24 +1064,12 @@ CREATE TABLE IF NOT EXISTS DOCS (
                             )}
                     </Text>
                     {name !== '' && (
-                        <View style={styles.pickerWrapper} key={index}>
+                        <View style={[styles.pickerWrapper, { marginTop: 15 }]} key={index}>
                             {name === 'break' ? (
                                 <View style={{ flexDirection: 'row', }}>
-                                    <TextInput
-                                        //value={String(value)}
-                                        keyboardType="numeric"
-                                        // onChangeText={onChange}
-                                        style={{
-                                            borderWidth: 1,
-                                            borderColor: 'gray',
-                                            paddingHorizontal: 10,
-                                            paddingVertical: 5,
-                                            marginHorizontal: 5,
-                                            textAlign: 'center',
-                                        }}
-                                    />
+                                    <NumericInput type='plus-minus' rounded initValue={intValue} onChange={handleBreakUpdate} />
                                     <TouchableOpacity >
-                                        <Icon name="trash-outline" size={22} color="#E57373" style={{ marginTop: 20, left: 3 }} onPress={deleteText} />
+                                        <Icon name="trash-outline" size={22} color="#E57373" style={{ marginTop: 12, left: 4 }} onPress={deleteText} />
                                     </TouchableOpacity>
                                 </View>
                             ) :
@@ -1168,6 +1200,14 @@ CREATE TABLE IF NOT EXISTS DOCS (
                             <Text style={styles.subMenuItemText}>Emphasis</Text>
                             <Icon name="ear-outline" size={24} color="#2B3270" />
                         </TouchableOpacity>
+                        {/*<TouchableOpacity style={styles.subMenuItem} onPress={() => { setShowVoiceGenderModal(true); setActiveMenu(-1); }}>
+                            <Text style={styles.subMenuItemText}>Language</Text>
+                            <Icon name="language-outline" size={24} color="#2B3270" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.subMenuItem} onPress={() => { setShowVoiceGenderModal(true); setActiveMenu(-1); }}>
+                            <Text style={styles.subMenuItemText}>Voice gender</Text>
+                            <Icon name="male-female" size={24} color="#2B3270" />
+                        </TouchableOpacity>*/}
                         <TouchableOpacity onPress={() => handleMenuClick(1)}>
                             <View style={{ alignItems: 'center', justifyContent: 'center' }}>
                                 <Icon name="chevron-up-outline" size={20} color="#2B3270" />
@@ -1204,11 +1244,34 @@ CREATE TABLE IF NOT EXISTS DOCS (
                                 <Text style={styles.subMenuItemText}>Time</Text>
                                 <Icon name="ios-time-outline" size={24} color="#2B3270" />
                             </TouchableOpacity>*/}
-                        <TouchableOpacity style={styles.subMenuItem} onPress={() => { setModalCardinalVisible(true); setActiveMenu(-1); }}>
+                        <TouchableOpacity style={styles.subMenuItem} onPress={() => {
+                            if (isNaN(lastSelection.selectedText)) {
+                                setActiveMenu(-1);
+                                Alert.alert(
+                                    'Warning',
+                                    'The selected text must be a number !',
+                                    [{ text: 'OK' }],
+                                    { cancelable: false }
+                                );
+                            } else { setModalCardinalVisible(true); setActiveMenu(-1); }
+                        }}>
                             <Text style={styles.subMenuItemText}>Cardinal number</Text>
                             <Octicons name="number" size={20} color="#2B3270" />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.subMenuItem} onPress={() => { setModalOrdinalVisible(true); setActiveMenu(-1); }}>
+                        <TouchableOpacity style={styles.subMenuItem} onPress={() => {
+                            if (isNaN(lastSelection.selectedText)) {
+                                setActiveMenu(-1);
+                                Alert.alert(
+                                    'Warning',
+                                    'The selected text must be a number !',
+                                    [{ text: 'OK' }],
+                                    { cancelable: false }
+                                );
+                            } else {
+                                setModalOrdinalVisible(true);
+                                setActiveMenu(-1);
+                            }
+                        }}>
                             <Text style={styles.subMenuItemText}>Ordinal number</Text>
                             <Octicons name="number" size={20} color="#2B3270" />
                         </TouchableOpacity>
@@ -1393,7 +1456,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                     <View removeClippedSubviews={true} style={styles.containerInput}>
                         <TextInput
                             contextMenuHidden={true}
-                            
+
                             onFocus={() => setInputFocused(true)} // update inputFocused state when input is focused
                             onBlur={() => setInputFocused(false)}
                             onSelectionChange={handleSelectionChange}
@@ -1409,7 +1472,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                             dense
                             style={styles.input}
                             underlineColor="#FFF"
-                          
+
                             showSoftInputOnFocus={false}
 
                         />
@@ -1453,24 +1516,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                                 </Button>
                             </View>
                         </View>
-                        {isMenuVisible && (
-                            <View style={styles.menuContainer}>
-                                <TouchableOpacity onPress={() => setIsMenuVisible(false)}>
-                                    <View style={{ alignItems: 'center', justifyContent: 'center' }} >
-                                        <Icon name="chevron-down-outline" size={24} color="#6CA4FC" />
-                                    </View>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={styles.menuItemElip}>
-                                    <Text style={styles.menuText}>Overview</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={styles.menuItemElip}>
-                                    <Text style={[styles.menuText, { color: '#6CA4FC' }]}>Set Voice</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={styles.menuItemElip}>
-                                    <Text style={[styles.menuText, { color: '#6CA4FC' }]}>Set Language</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
+
                     </View>
 
 
@@ -1819,6 +1865,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                         </View>
                     </Modal>
 
+
                     <Modal animationType='slide' transparent={true} visible={modalAbbVisible}>
                         <View style={styles.modalContainer}>
                             <View style={styles.modalContent}>
@@ -1868,19 +1915,8 @@ CREATE TABLE IF NOT EXISTS DOCS (
                                     <Text style={styles.modalTitle}>Set Cardinal Number </Text>
                                 </View>
                                 <View style={styles.modalBreakInputContainer}>
-                                    {isNaN(lastSelection.selectedText) ? (
-                                        <View>
-                                            <View style={{ flexDirection: 'row', marginTop: 20, marginRight: 15, alignItems: 'center', }}>
-                                                <Icon name="alert-circle-outline" style={{ color: 'red' }} size={28} />
-                                                <Text style={{ color: 'red', marginLeft: 10 }}>The selected text must be a number !</Text>
-                                            </View>
-                                            <View style={styles.modalButtonContainer}>
-                                                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={() => setModalCardinalVisible(false)}>
-                                                    <Text style={{ color: '#FFFFFF' }}>OK</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        </View>
-                                    ) : (<View>
+
+                                    <View>
                                         <Text style={{ marginTop: 20, color: 'gray' }}>Are you sure you want to set <Text style={{ fontWeight: 'bold', color: '#2B3270' }}>{"\"" + lastSelection.selectedText + "\""}</Text> as cardinal number ?</Text>
 
                                         <View style={styles.modalButtonContainer}>
@@ -1892,7 +1928,7 @@ CREATE TABLE IF NOT EXISTS DOCS (
                                             </TouchableOpacity>
                                         </View>
                                     </View>
-                                    )}
+
                                 </View>
 
                             </View>
@@ -1996,6 +2032,51 @@ CREATE TABLE IF NOT EXISTS DOCS (
                             </View>
                         </View>
                     </Modal>
+
+                    <Modal animationType='slide' transparent={true} visible={showVoiceGenderModal}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+
+                                <View style={styles.modalHeader}>
+                                    <TouchableOpacity onPress={() => setShowVoiceGenderModal(false)}>
+                                        <Icon name="close-circle-outline" size={24} color="gray" style={styles.modalCloseButton} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.modalTitle}>Set Voice Gender Option</Text>
+
+                                </View>
+
+                                <View style={styles.modalBreakInputContainer}>
+
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 20 }}>
+
+                                        <RadioButton
+                                            value="Male"
+                                            color="#6CA4FC"
+                                            status={value === 'Male' ? 'checked' : 'unchecked'}
+                                            onPress={() => setValue('Male')}
+                                        />
+                                        <Text style={{ marginRight: 20 }}>Male</Text>
+                                        <RadioButton
+                                            value="Female"
+                                            color="#6CA4FC"
+                                            status={value === 'Female' ? 'checked' : 'unchecked'}
+                                            onPress={() => setValue('Female')}
+                                        />
+                                        <Text>Female</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.modalButtonContainer}>
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#6CA4FC' }]} onPress={onVoiceGenderSubmit}>
+                                        <Text style={{ color: '#FFFFFF' }}>Submit</Text>
+                                    </TouchableOpacity>
+
+                                </View>
+                            </View>
+                        </View>
+                    </Modal>
+
+
                     <Modal
                         visible={showPreviewModal}
                         animationType="slide"
@@ -2003,57 +2084,70 @@ CREATE TABLE IF NOT EXISTS DOCS (
 
                     >
                         <Provider>
-                            <TouchableWithoutFeedback
+                            <View style={styles.previewModalContainer}>
+                                <TouchableOpacity onPress={() => setShowPreviewModal(false)}>
+                                    <View style={styles.separatorLine}>
+                                        {/* Add content for the separator line here */}
+                                    </View>
+                                </TouchableOpacity>
 
-                                onPress={() => setShowPreviewModal(false)}
-                            >
+                                {cards.length > 0 ? (
+                                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                                        {cards}
+                                        <View style={{ width: 200, justifyContent: 'center', marginTop: 20, marginLeft: 'auto', marginRight: 'auto' }}>
+                                            <Button
+                                                mode="outlined"
+                                                loading={loading}
+                                                disabled={loading}
+                                                onPress={() => {
+                                                    if (selectedVoiceGender === '' || selectedLanguage === '') {
 
+                                                        Alert.alert(
+                                                            'Warning',
+                                                            'You must choose a language and voice gender first to be able to listen to the new text.',
+                                                            [{ text: 'OK', onPress: () => console.log('OK Pressed') }],
+                                                            {
+                                                                cancelable: false,
+                                                                titleStyle: { color: 'red', fontSize: 24, fontWeight: 'bold' },
+                                                                messageStyle: { color: 'black', fontSize: 18 },
+                                                                containerStyle: { backgroundColor: 'white', borderWidth: 2, borderColor: 'red', borderRadius: 10 },
+                                                                buttonStyle: { backgroundColor: 'red' },
+                                                                buttonTextStyle: { color: 'red' }
+                                                            }
+                                                        );
+                                                    } else {
+                                                        handlePress();
+                                                    }
+                                                }}
+                                                style={{
+                                                    borderRadius: 20,
+                                                    marginVertical: 8,
+                                                    borderColor: "#6CA4FC",
+                                                }}
+                                                contentStyle={{ height: 40, }}
+                                                labelStyle={{ fontSize: 16 }}
+                                                textColor="#6CA4FC"
+                                            >
+                                                {loading ? (
+                                                    <Text style={{ color: 'gray', marginRight: 10 }}>Processing</Text>
+                                                ) : sent ? (
+                                                    <Text> <Icon name="checkmark-done-outline" size={16} color="#fff" />Done</Text>
+                                                ) : (
+                                                    <Text>Apply change</Text>
+                                                )}
+                                            </Button>
 
-                                <View style={styles.previewModalContainer}>
-                                    <View style={styles.separatorLine}></View>
-
-
-
-                                    {cards.length > 0 ? (
-                                        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                                            {cards}
-                                            <View style={{ width: 200, justifyContent: 'center', marginTop: 20, marginLeft: 'auto', marginRight: 'auto' }}>
-                                                <Button
-                                                    mode="outlined"
-                                                    loading={loading}
-                                                    disabled={loading}
-                                                    onPress={handlePress}
-                                                    style={{
-                                                        borderRadius: 20,
-                                                        marginVertical: 8,
-                                                        borderColor: "#6CA4FC",
-                                                    }}
-                                                    contentStyle={{ height: 40, }}
-                                                    labelStyle={{ fontSize: 16 }}
-                                                    textColor="#6CA4FC"
-                                                >
-                                                    {loading ? (
-                                                        <Text style={{ color: 'gray', marginRight: 10 }}>Processing</Text>
-                                                    ) : sent ? (
-
-                                                        <Text> <Icon name="checkmark-done-outline" size={16} color="#fff" />Done</Text>
-                                                    ) : (
-                                                        <Text>Apply change</Text>
-                                                    )}
-                                                </Button>
-
-
-                                            </View>
-
-                                        </ScrollView>
-                                    ) : (
-                                        <View style={styles.noDataContainer}>
                                         </View>
-                                    )}
-
-                                </View>
-                            </TouchableWithoutFeedback>
+                                    </ScrollView>
+                                ) : (
+                                    <View style={styles.noDataContainer}>
+                                        <Image source={noDataImage} style={{ width: 160, height: 160 }} />
+                                        <Text style={{ color: '#6CA4FC', fontSize: 12 }}>There is no speech configuration yet</Text>
+                                    </View>
+                                )}
+                            </View>
                         </Provider>
+
                     </Modal>
 
 
@@ -2155,7 +2249,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 30,
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: 'normal',
         justifyContent: 'space-between',
         borderTopLeftRadius: 30,
         borderTopRightRadius: 30,
@@ -2587,14 +2681,6 @@ const styles = StyleSheet.create({
         zIndex: 40,
 
     },
-    noDataContainer: {
-
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    noDataImage: {
-
-    },
     alertStyle: {
         backgroundColor: 'white',
         borderRadius: 8,
@@ -2629,7 +2715,11 @@ const styles = StyleSheet.create({
         color: '#fff',
         marginTop: 10,
     },
-
+    noDataContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+    },
 
 });
 
